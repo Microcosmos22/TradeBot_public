@@ -10,9 +10,10 @@ Main goal is to develop a GUI so that the user can easily:
 
 ## Progress
 Managed to overfit the training data. As you can see he predicts the training data perfectly, while not having generalized to validation data.
+x-axis represents time, y-axis is the returns (price change in %).
 ![Alt text](./overfit.png)
 
-A profit simulation of 3 different machines on real data. Obtained constant profit slopes instead of a random walk, which is a good sign.
+A profit (y) simulation of 3 different machines on real data (last 3000 hours in x-axis). Obtained constant profit slopes instead of a random walk, which is a good sign.
 ![Alt text](./profit_3machines.png)
 
 Much more to come...
