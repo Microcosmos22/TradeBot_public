@@ -1,4 +1,14 @@
-# TradeBot
+# Hello Multiverse recruiter!
+I applied yesterday for the pre-sales position, and wanted to polish this projects presentation/collaborability but I am having a bad day.
+
+If you give me two days I will make an installable library, including:
+- requirements.txt for automatic installation in an env.
+- Documentation of the library with Sphinx.
+- A easy to reproduce demo from dataset acquisition, LSTM training, and live trading simulation.
+
+Have a good day!
+________________________________________________________________________________
+
 ## Goal
 Main goal is to develop a GUI so that the user can easily:
 
