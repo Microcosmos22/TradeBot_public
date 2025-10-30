@@ -52,17 +52,21 @@ class CryptoDataGetter:
         self.coin = None
         self.lookf, self.lookb, self.steps, self.stability_slope, self.val_train_proportion = 0,0,0,0,0
         self.x_train, self.y_train, self.x_val, self.y_val, self.scaler_fitted = None, None, None, None, None
-        self.target_train, self.target_val, self.features_train, self._features_val = 0,0,0,0
+        self.target_train, self.target_val, self.features_train, self.features_val = 0,0,0,0
         self.lookf, self.lookb, self.steps, self.stability_slope = 0,0,0,0
 
-    def get_historical_data_trim(timedef, coin = "BTCUSDT", nfeatures = 13, candle_length = Client.KLINE_INTERVAL_1HOUR, normalize=True, plot=False):
+    def load_simdata():
+        self.target_total = np.load("../target_sim.npy")
+        self.features_total = np.load("../features_sim.npy")
+        self.dates_total = np.load("../dates_sim.npy")
+
+    def get_historical_data_trim(timedef, coin = "BTCUSDT", candle_length = Client.KLINE_INTERVAL_1HOUR, normalize=True, plot=False):
         """ Given a end_of_training datetime and N of candles, returns the past N candles and computes the features/technical indicators.
         Gets all candles and features of a crypto coin for a fixed candle length. There is three options:
         # 1: timedef is an int -> retrieve the last N candles
         # 2: timedef is a start_datetime -> retrieve candles until now
         # 3: COMMONLY: timedef is [end_date, int] to retrieve last N candles before "end_date"
         """
-        self.end_of_training = datetime.strptime(end_of_training, "%d %B %Y %H:%M:%S")
         # Binance API key and secret :)
         api_key = "pxRONzQcbpDoImQXzHqkO6XJWd7WMIKSTyBPtTlkvaCbIGJ0Whcnz8LDw7SavMIx"
         api_secret = "hFXzByh1Fg90Vcxvx8uakDq9n6reH32KswXuYOTzFxxjmAVvMbHRh1lOvMSgHlex"
@@ -98,7 +102,6 @@ class CryptoDataGetter:
             end_date = timedef[0]
             n_candles = timedef[1]
 
-
             interval = candle2interval(candle_length)
             time_to_subtract = interval * n_candles
             # Calculate the start_date by subtracting the total time from the end_date
@@ -128,23 +131,21 @@ class CryptoDataGetter:
         """ (time, open, high, low, close, volume, close_time etc.) """
         # Use closing prices
 
-        timestamps = data[:, 0]  # First column contains the timestamp (open time)
-        target, features = compute_features_trim(data, timestamps, nfeatures)
+        self.timestamps = data[:, 0]  # First column contains the timestamp (open time)
+        self.target_total, self.features_total = compute_features_trim(data, self.timestamps)
+        self.dates =
+
         print(target.shape, features.shape)
         if plot:
             plot_historical_data(target, features)
 
-        return np.asarray(target), np.asarray(features), np.asarray(timestamps).astype(np.int64), data
-
         #target_total = k_driver(target_total, features_total)
 
         """ Split target and features into training and validation """
-        self.target_train = target_total[:int(target.shape[0]*(1-val_train_proportion))]
-        self.target_val = target_total[int(target.shape[0]*(1-val_train_proportion)):]
-        self.features_train = features_total[:int(features.shape[0]*(1-val_train_proportion))]
-        self.features_val = features_total[int(features.shape[0]*(1-val_train_proportion)):]
-
-        self.lookf, self.lookb, self.steps, self.stability_slope = lookf, lookb, steps, stability_slope
+        self.target_train = self.target_total[:int(target.shape[0]*(1-val_train_proportion))]
+        self.target_val = self.target_total[int(target.shape[0]*(1-val_train_proportion)):]
+        self.features_train = self.features_total[:int(features.shape[0]*(1-val_train_proportion))]
+        self.features_val = self.features_total[int(features.shape[0]*(1-val_train_proportion)):]
 
     def slice_train_and_val():
 
@@ -154,6 +155,7 @@ class CryptoDataGetter:
         self.x_val, self.y_val, _ = self.slice_tapes(          self.target_val, self.features_val, self.lookf, self.lookb, self.steps,      self.stability_slope, self.scaler_fitted, trainorval="val")
         print("LSTM In- & Out shapes (validation): {}, {}".format(x_val.shape, y_val.shape))
 
+    return np.asarray(target), np.asarray(features), np.asarray(timestamps).astype(np.int64), data
 
     def slice_tapes(target, features, lookf, lookb, steps, stab_slope, scaler = None, onlyfirstpoints = None, indices = None, nowstr = " ", trainorval = None):
         """ Prepares the input for the ML model from tha API fetched data. It cuts and slices the
@@ -205,8 +207,6 @@ class CryptoDataGetter:
                 y.append(stacked_n[i+lookb:i+lookf+lookb,0])
 
         return np.asarray(x),  np.asarray(y), scaler
-
-
 
 def load_example_train_val(ncandles=3200, coin = "BTCUSDT", candle=Client.KLINE_INTERVAL_1HOUR):
     #start_of_training = datetime.strptime("1 September 2020 00:00:00", "%d %B %Y %H:%M:%S")

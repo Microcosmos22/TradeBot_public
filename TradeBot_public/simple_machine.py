@@ -33,14 +33,22 @@ def deleteplots(file1, file2, file3):
             except Exception as e:
                 print(f"Error removing file {file_path[45:]}: {e}")
 
-class SimpleMachine:
-    def __init__(self, layer1, layer2, lookb, lookf, learn_rate, dropout):
-        self.layer1 = layer1
-        self.layer2 = layer2
-        self.lookb = lookb
-        self.lookf = lookf
-        self.learn_rate = learn_rate
-        self.dropout = dropout
+class CryptoMachine:
+    def __init__(self):
+        # Attributes to store training curves
+        self.layer1, self.layer2, self.lookb, self.lookf, self.learn_rate, self.dropout = None, None, None, None, None, None
+
+        self.model = None
+        self.scaler = None
+
+        self.errorplots = None
+        self.valplots = None
+        self.mae = None
+        self.modelpath = None
+        self.scalerpath = None
+
+    def init(layer1, layer2, lookb, lookf, learn_rate, dropout):
+        self.layer1, self.layer2, self.lookb, self.lookf, self.learn_rate, self.dropout = layer1, layer2, lookb, lookf, learn_rate, dropout
 
         # Define the model
         self.model = Sequential()
@@ -58,15 +66,20 @@ class SimpleMachine:
         self.model.compile(loss='mean_squared_error', optimizer=optimizer, metrics=['mae', 'mse'])
         self.model.summary()
 
-        # Attributes to store training curves
         self.errorplots = None
         self.valplots = None
         self.mae = None
         self.modelpath = None
         self.scalerpath = None
 
+    def load_machine(machinestrn, scalerstrn):
+
+        self.model = load_model(os.path.join("../machines", machinestrn))
+        with open(os.path.join("../scalers", scalerstrn+"pkl"), 'rb') as f:
+            scalern = pickle.load(f)
+
     def fit(self, x_train, y_train, x_val, y_val, epochs, batch,
-            scaler=None, steps=1, stability_slope=0, onlyfirstpoints=0, candle=1, nowstr="NOW", plot_curves=True):
+            save=False, steps=1, stability_slope=0, onlyfirstpoints=0, candle=1, nowstr="NOW", plot_curves=True):
 
         history = self.model.fit(
             x_train, y_train,
@@ -74,6 +87,7 @@ class SimpleMachine:
             batch_size=batch,
             validation_data=(x_val, y_val)
         )
+        self.scaler = self.model.scaler
 
         # Save training metrics
         self.errorplots = np.log(history.history['loss'])
@@ -84,16 +98,43 @@ class SimpleMachine:
         self.modelpath = f"../machines/1H1KTAPES_machine_{nowstr}_f{self.lookf}_b{self.lookb}_s{steps}_sbs{stability_slope}_l{self.learn_rate}_b{batch}_one{self.layer1}_two{self.layer2}_only{onlyfirstpoints}_dr{self.dropout}_candle{candle}.h5"
         self.scalerpath = f"../scalers/1K1KTAPES_scaler_{nowstr}_f{self.lookf}_b{self.lookb}_s{steps}_sbs{stability_slope}_l{self.learn_rate}_b{batch}_one{self.layer1}_two{self.layer2}_only{onlyfirstpoints}_dr{self.dropout}_candle{candle}.pkl"
 
-        # Save model and scaler
-        print(f"saving model {self.modelpath} \n and scaler {self.scalerpath}")
-        self.model.save(self.modelpath)
-        if scaler is not None:
-            with open(self.scalerpath, 'wb') as f:
-                pickle.dump(scaler, f)
+        if(save):
+            print(f"saving model {self.modelpath} \n and scaler {self.scalerpath}")
+            self.model.save(self.modelpath)
+            if scaler is not None:
+                with open(self.scalerpath, 'wb') as f:
+                    pickle.dump(self.model.scaler, f)
 
-        # Plot curves if requested
-        if plot_curves:
-            self.plot(nowstr)
+    def raws_predict(target, features, lookf):
+        """ Makes the LAST tape of the given target, features
+        and makes a prediction for the next candle. Accepts both lookf=10 or 1 models,
+        as it grabs only the first following value    """
+        lookb = 10
+        returns_test = calc_returns(target) # true returns
+        stacked_test = np.hstack((returns_test.reshape(-1,1), features[1:]))[-10:]
+
+        stacked_test_n = self.scaler.transform(stacked_test.reshape(-1, self.scaler.n_features_in_))
+
+        stacked_test_n = stacked_test_n.reshape(-1,self.scaler.n_features_in_,1)
+        return_pred_n = self.model.predict(stacked_test_n[-lookb:,:].reshape(1, lookb, self.scaler.n_features_in_), verbose=0)
+
+        stacked_n = np.full((lookf, self.scaler.n_features_in_), np.nan)
+
+        stacked_n[:,0] = return_pred_n.reshape(-1)[:lookf]
+        stacked_pred = self.scaler.inverse_transform(stacked_n) # prediction is returns
+
+        return stacked_pred
+
+    def tape_predict(x):
+        """ Takes a tape and makes a prediction for the next candle """
+
+        return_pred_n = self.model.predict(x.reshape(1, lookb, 13), verbose=0)[0,0,0]
+
+        stacked_n = np.full((1, 13), np.nan)
+        stacked_n[0,0] = return_pred_n.reshape(-1)
+        stacked_pred = self.scaler.inverse_transform(stacked_n) # prediction is returns
+
+        return stacked_pred
 
     def plot(self, nowstr="NOW"):
         if self.errorplots is None or self.valplots is None:
@@ -141,5 +182,6 @@ if __name__ == "__main__":
     x_val = cryptodata.x_val
     y_val = cryptodata.y_val
 
-    simple_machine = SimpleMachine(layer1 = 40, layer2 = 15, lookb = 10, lookf = 5, learn_rate = 0.09 , dropout = 0.0)
+    simple_machine = CryptoMachine()
+    simple_machine.init(layer1 = 40, layer2 = 15, lookb = 10, lookf = 5, learn_rate = 0.09 , dropout = 0.0)
     simple_machine.fit(x_train, y_train, x_val, y_val, epochs = epochs, batch = 16)
