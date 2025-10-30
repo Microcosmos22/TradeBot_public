@@ -223,7 +223,6 @@ def equil_trader(forw_diff, kasse, btc_kasse, btc_price, equil_const = 100, forw
     # Is now always in interval [1, infty]
 
 
-
     # Introduce assymetry to ensure the kasse doesnt run out
     if forw_diff > 0:
         if sign > 0:# More Kasse
@@ -263,7 +262,6 @@ def equil_trader(forw_diff, kasse, btc_kasse, btc_price, equil_const = 100, forw
     return kasse, btc_kasse, bought, equil, bought0
 
 
-
 def simulate_rendite(sim_N = 3600, verboseeach = 250, onlyfirstmachines=None, equil_const = 2, subsets = 200):
     """ Runs through hourly candles, trades using each machine and computes obtained returns """
     # Careful, amount of tapes is less than target bec. they span an interval (lookb+lookf).
@@ -300,15 +298,8 @@ def simulate_rendite(sim_N = 3600, verboseeach = 250, onlyfirstmachines=None, eq
     bets = [[] for k in range(len(modeln))]
     price_error = [[] for k in range(len(modeln))]
     forw_diffs = [[] for k in range(len(modeln))]
-    correct_direction = [[] for k in range(len(modeln))]
-    correct_down = [[] for k in range(len(modeln))]
-
-    l=0
 
     for i in range(len(targetn)): # Loop through the hourly tapes
-        if i > subsets*(l+1): # l tells which subset we're in
-            l+=1
-
         old_btc_price = copy.copy(btc_price_now)
 
         # grab the ith-slice [0:11] which has indexes 0, 1, ..., 10
@@ -331,13 +322,13 @@ def simulate_rendite(sim_N = 3600, verboseeach = 250, onlyfirstmachines=None, eq
         forw_diff = price_pred-btc_price_now
 
         # Trade (Bet)
-        kasse[k], btc_kasse[k], bought, out_of_equil, bought0 = equil_trader(forw_diff, kasse[k], btc_kasse[k], btc_price_now, equil_const, forward_const = 10)
+        kasse, btc_kasse, bought, out_of_equil, bought0 = equil_trader(forw_diff, kasse, btc_kasse, btc_price_now, equil_const, forward_const = 10)
 
 
         if i%verboseeach==0:
             print("############################################")
             print("step {}, machine {}".format(i, k))
-            printstep(btc_price_now, forw_diff, bought, time, kasse[k], btc_kasse[k], out_of_equil, bought0)
+            printstep(btc_price_now, forw_diff, bought, time, kasse, btc_kasse, out_of_equil, bought0)
             #print("Now price {} Last price obs (candle): {}".format(btc_price_now,target[i+lookb]))
 
 
@@ -347,15 +338,6 @@ def simulate_rendite(sim_N = 3600, verboseeach = 250, onlyfirstmachines=None, eq
 
         btc_gewinn = (10000*btc_price_now/start_price-10000)
         port_track[k].append((portfolio[k]-20000)-btc_gewinn)
-
-        #print((btc_price_now-old_btc_price), stacked_pred[-1,0])
-
-        if ((btc_price_now-old_btc_price) > 0 and (stacked_pred[-1,0] > 0)):
-            correct_direction[k].append(1)
-        elif ((btc_price_now-old_btc_price) < 0 and (stacked_pred[-1,0] < 0)):
-            correct_direction[k].append(1)
-        else:
-            correct_direction[k].append(0)
 
         old_price_pred = copy.copy(price_pred)
 

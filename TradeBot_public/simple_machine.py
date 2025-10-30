@@ -132,7 +132,8 @@ if __name__ == "__main__":
     epochs = 100
     #stability_cut = None#0.5 # 0.05 # where stab_cut * lookb (=100) is the maximal return observed in the train/val/test set
 
-    cryptodata = CryptoDataGetter("1 August 2024 00:00:00", 32000, "BTCUSDT", lookf = 10, lookb = 5, steps = 1)
+    cryptodata = CryptoDataGetter()
+    cryptodata.get_historical_data_trim("1 August 2024 00:00:00", 32000, "BTCUSDT", lookf = 10, lookb = 5, steps = 1)
     cryptodata.slice_train_and_val()
 
     x_train = cryptodata.x_train

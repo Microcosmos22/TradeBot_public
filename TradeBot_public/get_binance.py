@@ -35,88 +35,6 @@ def candle2interval(candle_length):
     return interval_duration
 
 
-
-def get_historical_data_trim(timedef, coin = "BTCUSDT", nfeatures = 13, candle_length = Client.KLINE_INTERVAL_1HOUR, normalize=True, plot=False):
-    """ Gets all candles and features of a crypto coin for a fixed candle length. There is three options:
-        # 1: timedef is an int -> retrieve the last N candles
-        # 2: timedef is a start_datetime -> retrieve candles until now
-        # 3: COMMONLY: timedef is [end_date, int] to retrieve last N candles before "end_date"
-    """
-
-    # Binance API key and secret :)
-    api_key = "pxRONzQcbpDoImQXzHqkO6XJWd7WMIKSTyBPtTlkvaCbIGJ0Whcnz8LDw7SavMIx"
-    api_secret = "hFXzByh1Fg90Vcxvx8uakDq9n6reH32KswXuYOTzFxxjmAVvMbHRh1lOvMSgHlex"
-    client = Client(api_key, api_secret)
-
-    if type(timedef) == int:
-        now = datetime.now()
-        end_date = now.strftime("%Y-%m-%d %H:%M:%S")
-        n_candles = timedef
-
-        interval = candle2interval(candle_length)
-        time_to_subtract = interval * n_candles
-        # Calculate the start_date by subtracting the total time from the end_date
-        start_date = now - time_to_subtract
-
-        data = np.asarray(client.get_historical_klines(
-        coin, candle_length,
-        start_str=start_date.strftime("%Y-%m-%d %H:%M:%S"),
-        end_str=now.strftime("%Y-%m-%d %H:%M:%S")
-        ))
-
-        print("Calling last {} candles".format(data[:, 0].shape[0]))
-
-    elif isinstance(timedef, datetime):
-
-        symbol = coin
-        timedef = timedef.strftime("%Y-%m-%d %H:%M:%S")
-        data = np.asarray(client.get_historical_klines(symbol, candle_length, timedef)).astype(float)
-        print("Calling candles since {}".format(timedef))
-
-    elif (isinstance(timedef[0], datetime) and type(timedef[1]) == int):
-
-        end_date = timedef[0]
-        n_candles = timedef[1]
-
-
-        interval = candle2interval(candle_length)
-        time_to_subtract = interval * n_candles
-        # Calculate the start_date by subtracting the total time from the end_date
-        start_date = end_date - time_to_subtract
-
-        data = np.asarray(client.get_historical_klines(
-        coin, candle_length,
-        start_str=start_date.strftime("%Y-%m-%d %H:%M:%S"),
-        end_str=end_date.strftime("%Y-%m-%d %H:%M:%S")
-        ))
-
-        print("Calling last {} candles before {} (starting {})".format(n_candles, end_date, start_date))
-
-
-    elif (isinstance(timedef[0], datetime) and isinstance(timedef[1], datetime)):
-        start_date = timedef[0]
-        end_date = timedef[1]
-
-
-        data = np.asarray(client.get_historical_klines(
-        coin, candle_length,
-        start_str=start_date.strftime("%Y-%m-%d %H:%M:%S"),
-        end_str=end_date.strftime("%Y-%m-%d %H:%M:%S")))
-        print("calling {} candles between {} and {}".format(data.shape, timedef[0].strftime("%d %b, %Y %H:%M:%S"), timedef[1].strftime("%Y-%m-%d %H:%M:%S")))
-
-    print(data.shape)
-    """ (time, open, high, low, close, volume, close_time etc.) """
-    # Use closing prices
-
-    timestamps = data[:, 0]  # First column contains the timestamp (open time)
-    target, features = compute_features_trim(data, timestamps, nfeatures)
-    print(target.shape, features.shape)
-    if plot:
-        plot_historical_data(target, features)
-
-    return np.asarray(target), np.asarray(features), np.asarray(timestamps).astype(np.int64), data
-
-
 def k_driver(target0, features, traderpower = 50):
     k = features[:,6]
     target = copy.copy(target0)
@@ -128,19 +46,104 @@ def k_driver(target0, features, traderpower = 50):
     return target
 
 class CryptoDataGetter:
-    def __init__(self, end_of_training, ncandles, coin, lookf = 10, lookb = 5, steps = 1, stability_slope = 0, val_train_proportion = 1/6):
-        """ Given a end_of_training datetime and N of candles, returns the past N candles and computes the features/technical indicators """
+    def __init__(self):
+        self.end_of_training = None
+        self.ncandles = None
+        self.coin = None
+        self.lookf, self.lookb, self.steps, self.stability_slope, self.val_train_proportion = 0,0,0,0,0
+        self.x_train, self.y_train, self.x_val, self.y_val, self.scaler_fitted = None, None, None, None, None
+        self.target_train, self.target_val, self.features_train, self._features_val = 0,0,0,0
+        self.lookf, self.lookb, self.steps, self.stability_slope = 0,0,0,0
+
+    def get_historical_data_trim(timedef, coin = "BTCUSDT", nfeatures = 13, candle_length = Client.KLINE_INTERVAL_1HOUR, normalize=True, plot=False):
+        """ Given a end_of_training datetime and N of candles, returns the past N candles and computes the features/technical indicators.
+        Gets all candles and features of a crypto coin for a fixed candle length. There is three options:
+        # 1: timedef is an int -> retrieve the last N candles
+        # 2: timedef is a start_datetime -> retrieve candles until now
+        # 3: COMMONLY: timedef is [end_date, int] to retrieve last N candles before "end_date"
+        """
         self.end_of_training = datetime.strptime(end_of_training, "%d %B %Y %H:%M:%S")
-        target_total, features_total, _, _ = get_historical_data_trim([end_of_training, ncandles], coin = "BTCUSDT", normalize=False, plot=False)
-        target_total = k_driver(target_total, features_total)
+        # Binance API key and secret :)
+        api_key = "pxRONzQcbpDoImQXzHqkO6XJWd7WMIKSTyBPtTlkvaCbIGJ0Whcnz8LDw7SavMIx"
+        api_secret = "hFXzByh1Fg90Vcxvx8uakDq9n6reH32KswXuYOTzFxxjmAVvMbHRh1lOvMSgHlex"
+        client = Client(api_key, api_secret)
+
+        if type(timedef) == int:
+            now = datetime.now()
+            end_date = now.strftime("%Y-%m-%d %H:%M:%S")
+            n_candles = timedef
+
+            interval = candle2interval(candle_length)
+            time_to_subtract = interval * n_candles
+            # Calculate the start_date by subtracting the total time from the end_date
+            start_date = now - time_to_subtract
+
+            data = np.asarray(client.get_historical_klines(
+            coin, candle_length,
+            start_str=start_date.strftime("%Y-%m-%d %H:%M:%S"),
+            end_str=now.strftime("%Y-%m-%d %H:%M:%S")
+            ))
+
+            print("Calling last {} candles".format(data[:, 0].shape[0]))
+
+        elif isinstance(timedef, datetime):
+
+            symbol = coin
+            timedef = timedef.strftime("%Y-%m-%d %H:%M:%S")
+            data = np.asarray(client.get_historical_klines(symbol, candle_length, timedef)).astype(float)
+            print("Calling candles since {}".format(timedef))
+
+        elif (isinstance(timedef[0], datetime) and type(timedef[1]) == int):
+
+            end_date = timedef[0]
+            n_candles = timedef[1]
+
+
+            interval = candle2interval(candle_length)
+            time_to_subtract = interval * n_candles
+            # Calculate the start_date by subtracting the total time from the end_date
+            start_date = end_date - time_to_subtract
+
+            data = np.asarray(client.get_historical_klines(
+            coin, candle_length,
+            start_str=start_date.strftime("%Y-%m-%d %H:%M:%S"),
+            end_str=end_date.strftime("%Y-%m-%d %H:%M:%S")
+            ))
+
+            print("Calling last {} candles before {} (starting {})".format(n_candles, end_date, start_date))
+
+
+        elif (isinstance(timedef[0], datetime) and isinstance(timedef[1], datetime)):
+            start_date = timedef[0]
+            end_date = timedef[1]
+
+
+            data = np.asarray(client.get_historical_klines(
+            coin, candle_length,
+            start_str=start_date.strftime("%Y-%m-%d %H:%M:%S"),
+            end_str=end_date.strftime("%Y-%m-%d %H:%M:%S")))
+            print("calling {} candles between {} and {}".format(data.shape, timedef[0].strftime("%d %b, %Y %H:%M:%S"), timedef[1].strftime("%Y-%m-%d %H:%M:%S")))
+
+        print(data.shape)
+        """ (time, open, high, low, close, volume, close_time etc.) """
+        # Use closing prices
+
+        timestamps = data[:, 0]  # First column contains the timestamp (open time)
+        target, features = compute_features_trim(data, timestamps, nfeatures)
+        print(target.shape, features.shape)
+        if plot:
+            plot_historical_data(target, features)
+
+        return np.asarray(target), np.asarray(features), np.asarray(timestamps).astype(np.int64), data
+
+        #target_total = k_driver(target_total, features_total)
 
         """ Split target and features into training and validation """
-        self.target_train = target_total[:int(target_total.shape[0]*(1-val_train_proportion))]
-        self.target_val = target_total[int(target_total.shape[0]*(1-val_train_proportion)):]
-        self.features_train = features_total[:int(target_total.shape[0]*(1-val_train_proportion))]
-        self.features_val = features_total[int(target_total.shape[0]*(1-val_train_proportion)):]
+        self.target_train = target_total[:int(target.shape[0]*(1-val_train_proportion))]
+        self.target_val = target_total[int(target.shape[0]*(1-val_train_proportion)):]
+        self.features_train = features_total[:int(features.shape[0]*(1-val_train_proportion))]
+        self.features_val = features_total[int(features.shape[0]*(1-val_train_proportion)):]
 
-        self.x_train, self.y_train, self.x_val, self.y_val, self.scaler_fitted = None, None, None, None, None
         self.lookf, self.lookb, self.steps, self.stability_slope = lookf, lookb, steps, stability_slope
 
     def slice_train_and_val():
