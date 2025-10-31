@@ -143,7 +143,7 @@ def load_machines_scalers(onlyfirst = None):
     print("Found {} pairs of machine & scaler".format(matches))
     return modeln, machinestr, scalern, lookfn
 
-def printstep(btc_price, forw_diff, bought, lasttime, kasse, btc_kasse, out_of_equil, forw_dependency):
+def printstep(btc_price, forw_diff, bought, kasse, btc_kasse, out_of_equil, forw_dependency):
     #print()
     #print(f"Current Bitcoin price: {btc_price} USDT")
     print()
@@ -210,33 +210,33 @@ def equil_trader(forw_diff, kasse, btc_kasse, btc_price, equil_const = 100, forw
     """
     return kasse, btc_kasse, bought, equil, bought0
 
-def simulate_rendite(machinestrn, scalerstrn, timedef = datetime.now(), sim_N = 3600, verboseeach = 250, onlyfirstmachines=None, equil_const = 2, subsets = 200):
+def simulate_rendite(machinestrn, scalerstrn, timedef = [datetime.now(), 3600], verboseeach = 250, onlyfirstmachines=None, equil_const = 2, subsets = 200):
     """ Runs through hourly candles, trades using each machine and computes obtained returns """
     # Careful, amount of tapes is less than target bec. they span an interval (lookb+lookf).
     # Also the return computation reduces amount by -1.
     # First tape (x) spans [0:lookb+1] and the predicted return applies on target[lookb]
 
-    #modeln, machinestrn, scalern, lookfn = load_machines_scalers(onlyfirstmachines)
-
     simple_machine = CryptoMachine()
     simple_machine.load_machine(machinestrn, scalerstrn)
 
     cryptodata = CryptoDataGetter()
-    cryptodata.get_historical_data_trim(timedef, sim_N, "BTCUSDT", lookf = 10, lookb = 5, steps = 1)
+    if timedef[0] == "sim":
+        cryptodata.load_simdata(timedef[1])
+    else:
+        cryptodata.get_historical_data_trim(timedef[0], timedef[1], "BTCUSDT")
+
     target_full = cryptodata.target_total
     features_full = cryptodata.features_total
 
-    print("Last candle is")
-    print(datetime.utcfromtimestamp(dates[-1]/1000).strftime('%Y-%m-%d %H:%M:%S'))
+    #print("Last candle is")
+    #print(datetime.utcfromtimestamp(dates[-1]/1000).strftime('%Y-%m-%d %H:%M:%S'))
     """ Slicing to get the tapes """
     targetn, featuresn = [],[]
     for i in range(len(target_full)-20):
         targetn.append(target_full[i:i+11])
-        featuresn.append(features_large_full[i:i+11])
+        featuresn.append(features_full[i:i+11])
     sim_hours = len(target_full)-20
 
-
-    #target, features, dates = load_simdata(end_str = "1 January 2025 00:00:00", sim_N = 1000)
     start_price = target_full[10]
     btc_price_now = target_full[10]
 
@@ -244,15 +244,15 @@ def simulate_rendite(machinestrn, scalerstrn, timedef = datetime.now(), sim_N = 
 
     kasse = 10000 # Euros
     btc_kasse = 10000/float(start_price)
-    portfolio = [kasse+btc_kasse*float(start_price) for k in range(len(modeln))] # Euros
-    port_track = [[] for k in range(len(modeln))]
+    portfolio = kasse+btc_kasse*float(start_price) # Euros
+    port_track = []
 
     old_price_pred = target_full[10]
     bought, forw_diff = 0, 0
 
-    bets = [[] for k in range(len(modeln))]
-    price_error = [[] for k in range(len(modeln))]
-    forw_diffs = [[] for k in range(len(modeln))]
+    bets = []
+    price_error = []
+    forw_diffs = []
 
     for i in range(len(targetn)): # Loop through the tapes and simulate trading
         old_btc_price = copy.copy(btc_price_now)
@@ -261,15 +261,15 @@ def simulate_rendite(machinestrn, scalerstrn, timedef = datetime.now(), sim_N = 
         target = targetn[i]
         features = featuresn[i]
 
-        candle_date = dates[i+10]/1000
-        time = datetime.utcfromtimestamp(candle_date).strftime('%Y-%m-%d %H:%M:%S')
+        #candle_date = dates[i+10]/1000
+        #time = datetime.utcfromtimestamp(candle_date).strftime('%Y-%m-%d %H:%M:%S')
 
         btc_price_now = target[-1]
 
         # Bilanz ziehen
         portfolio = kasse+btc_kasse*btc_price_now
 
-        stacked_pred = simple_machine.raws_predict(target, features, lookfn)
+        stacked_pred = simple_machine.raws_predict(target, features)
         price_pred = btc_price_now*(1+stacked_pred[-1,0])
         forw_diff = price_pred-btc_price_now
 
@@ -278,8 +278,8 @@ def simulate_rendite(machinestrn, scalerstrn, timedef = datetime.now(), sim_N = 
 
         if i%verboseeach==0:
             print("############################################")
-            print("step {}, machine {}".format(i, k))
-            printstep(btc_price_now, forw_diff, bought, time, kasse, btc_kasse, out_of_equil, bought0)
+            print("step {}, machine".format(i))
+            printstep(btc_price_now, forw_diff, bought, kasse, btc_kasse, out_of_equil, bought0)
             #print("Now price {} Last price obs (candle): {}".format(btc_price_now,target[i+lookb]))
 
         bets.append(bought)
@@ -298,9 +298,9 @@ def simulate_rendite(machinestrn, scalerstrn, timedef = datetime.now(), sim_N = 
     # Bilanz ziehen, wertänderung nach trade und nach Kursänderung
     portfolio = kasse+btc_kasse*end_price
 
-    returns = [0.0 for k in range(len(modeln))]
+    returns = 0.0
     btc_gewinn = (10000*end_price/start_price-10000)
-    trade_returns = [0.0 for k in range(len(modeln))]
+    trade_returns = 0.0
 
     print(" @@@@@  Anfangszustand   @@@@  ")
     print(" Kasse: 1000 $, BTC-Kasse: {}".format(10000/float(start_price)))
@@ -321,10 +321,7 @@ def simulate_rendite(machinestrn, scalerstrn, timedef = datetime.now(), sim_N = 
     #print(" Price prediction error: {:.2f} +- {:.2f}".format(np.mean(price_error), np.std(price_error)))
     print(" Delta_price (forward): {:.2f} +- {:.2f}".format(np.mean(forw_diffs), np.std(forw_diffs)))
 
-    print(" Directions accuracy: {:.4f} +- {:.4f}".format(np.mean(np.asarray(correct_direction)), np.std(np.asarray(correct_direction))))
-    #print()
-
-    print(" Simulation from {} to {}".format(datetime.utcfromtimestamp(dates[0]/1000).strftime('%Y-%m-%d %H:%M:%S'), datetime.utcfromtimestamp(dates[-1]/1000).strftime('%Y-%m-%d %H:%M:%S')))
+    #print(" Directions accuracy: {:.4f} +- {:.4f}".format(np.mean(np.asarray(correct_direction)), np.std(np.asarray(correct_direction))))
     print(" BTC Preisanstieg von {} auf {} ".format(start_price, end_price))
 
     print(" Haben einen Gewinn von {:.2f} $, korrigiert {:.2f} $, Treffer {:.2f} %, Avg bet {:.2f} $  ".format((portfolio-20000),(portfolio-20000)-btc_gewinn, np.mean(np.asarray(correct_direction))*100, np.mean(bets)))
@@ -334,9 +331,9 @@ def simulate_rendite(machinestrn, scalerstrn, timedef = datetime.now(), sim_N = 
 
 if __name__ == "__main__":
 
-    client = Client(api_key, api_secret)
-    lookb = 10
+    #client = Client(api_key, api_secret)
+    #lookb = 10
 
     #live_trading1(model, scaler)
     """ Subsets must subdivide sim_N"""
-    simulate_rendite("1H1KTAPES_machine_2025-10-09_10-57-01_f1_b10_s2_sbs0.1_l0.09_b160_one40_two20_only8000_dr0.1_candle1h.h5", "1K1KTAPES_scaler_2025-10-09_10-57-01_f1_b10_s2_sbs0.1_l0.09_b160_one40_two20_only8000_dr0.1_candle1h.pkl", sim_N=3000, verboseeach=10, onlyfirstmachines=None, equil_const=50000, subsets=200)
+    simulate_rendite("1H1KTAPES_machine_2025-10-09_10-57-01_f1_b10_s2_sbs0.1_l0.09_b160_one40_two20_only8000_dr0.1_candle1h.h5", "1K1KTAPES_scaler_2025-10-09_10-57-01_f1_b10_s2_sbs0.1_l0.09_b160_one40_two20_only8000_dr0.1_candle1h.pkl", timedef = ["sim", 3600], verboseeach=10, onlyfirstmachines=None, equil_const=50000, subsets=200)

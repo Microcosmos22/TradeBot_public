@@ -47,7 +47,7 @@ class CryptoMachine:
         self.modelpath = None
         self.scalerpath = None
 
-    def init(layer1, layer2, lookb, lookf, learn_rate, dropout):
+    def init(self, layer1, layer2, lookb, lookf, learn_rate, dropout):
         self.layer1, self.layer2, self.lookb, self.lookf, self.learn_rate, self.dropout = layer1, layer2, lookb, lookf, learn_rate, dropout
 
         # Define the model
@@ -72,11 +72,13 @@ class CryptoMachine:
         self.modelpath = None
         self.scalerpath = None
 
-    def load_machine(machinestrn, scalerstrn):
+    def load_machine(self, machinestrn, scalerstrn):
 
         self.model = load_model(os.path.join("../machines", machinestrn))
-        with open(os.path.join("../scalers", scalerstrn+"pkl"), 'rb') as f:
+        with open(os.path.join("../scalers", scalerstrn), 'rb') as f:
             scalern = pickle.load(f)
+            self.scaler = scalern
+        self.lookf = 1
 
     def fit(self, x_train, y_train, x_val, y_val, epochs, batch,
             save=False, steps=1, stability_slope=0, onlyfirstpoints=0, candle=1, nowstr="NOW", plot_curves=True):
@@ -105,7 +107,7 @@ class CryptoMachine:
                 with open(self.scalerpath, 'wb') as f:
                     pickle.dump(self.model.scaler, f)
 
-    def raws_predict(target, features, lookf):
+    def raws_predict(self, target, features):
         """ Makes the LAST tape of the given target, features
         and makes a prediction for the next candle. Accepts both lookf=10 or 1 models,
         as it grabs only the first following value    """
@@ -118,15 +120,16 @@ class CryptoMachine:
         stacked_test_n = stacked_test_n.reshape(-1,self.scaler.n_features_in_,1)
         return_pred_n = self.model.predict(stacked_test_n[-lookb:,:].reshape(1, lookb, self.scaler.n_features_in_), verbose=0)
 
-        stacked_n = np.full((lookf, self.scaler.n_features_in_), np.nan)
 
-        stacked_n[:,0] = return_pred_n.reshape(-1)[:lookf]
+        stacked_n = np.full((self.lookf, self.scaler.n_features_in_), np.nan)
+
+        stacked_n[:,0] = return_pred_n.reshape(-1)[:self.lookf]
         stacked_pred = self.scaler.inverse_transform(stacked_n) # prediction is returns
 
         return stacked_pred
 
-    def tape_predict(x):
-        """ Takes a tape and makes a prediction for the next candle """
+    def tape_predict(self, x):
+        """ Takes a (normalized) tape and makes a prediction for the next candle """
 
         return_pred_n = self.model.predict(x.reshape(1, lookb, 13), verbose=0)[0,0,0]
 
