@@ -36,7 +36,7 @@ def deleteplots(file1, file2, file3):
 class CryptoMachine:
     def __init__(self):
         # Attributes to store training curves
-        self.layer1, self.layer2, self.lookb, self.lookf, self.learn_rate, self.dropout = None, None, None, None, None, None
+        self.candle, self.layer1, self.layer2, self.lookb, self.lookf, self.learn_rate, self.dropout = None, None, None, None, None, None, None
 
         self.model = None
         self.scaler = None
@@ -46,9 +46,10 @@ class CryptoMachine:
         self.mae = None
         self.modelpath = None
         self.scalerpath = None
+        self.batch = None
 
-    def init(self, layer1, layer2, lookb, lookf, learn_rate, dropout):
-        self.layer1, self.layer2, self.lookb, self.lookf, self.learn_rate, self.dropout = layer1, layer2, lookb, lookf, learn_rate, dropout
+    def init(self, candle, layer1, layer2, lookb, lookf, learn_rate, dropout):
+        self.candle, self.layer1, self.layer2, self.lookb, self.lookf, self.learn_rate, self.dropout = candle, layer1, layer2, lookb, lookf, learn_rate, dropout
 
         # Define the model
         self.model = Sequential()
@@ -66,60 +67,54 @@ class CryptoMachine:
         self.model.compile(loss='mean_squared_error', optimizer=optimizer, metrics=['mae', 'mse'])
         self.model.summary()
 
-        self.errorplots = None
-        self.valplots = None
-        self.mae = None
-        self.modelpath = None
-        self.scalerpath = None
-
     def load_machine(self, machinestrn, scalerstrn):
 
-        self.model = load_model(os.path.join("../machines", machinestrn))
-        with open(os.path.join("../scalers", scalerstrn), 'rb') as f:
+        self.model = load_model(os.path.join("../../machines", machinestrn))
+        with open(os.path.join("../../scalers", scalerstrn), 'rb') as f:
             scalern = pickle.load(f)
             self.scaler = scalern
         self.lookf = 1
 
     def fit(self, x_train, y_train, x_val, y_val, epochs, batch,
-            save=False, steps=1, stability_slope=0, onlyfirstpoints=0, candle=1, nowstr="NOW", plot_curves=True):
+            save=False, candle=1, nowstr="NOW", plot_curves=True):
 
+        self.batch = batch
         history = self.model.fit(
             x_train, y_train,
             epochs=epochs,
             batch_size=batch,
             validation_data=(x_val, y_val)
         )
-        self.scaler = self.model.scaler
 
         # Save training metrics
         self.errorplots = np.log(history.history['loss'])
         self.valplots = np.log(history.history['val_loss'])
         self.mae = np.log(history.history['mae'])
 
+    def save_model_scaler(self, scaler):
         # Define file paths
-        self.modelpath = f"../machines/1H1KTAPES_machine_{nowstr}_f{self.lookf}_b{self.lookb}_s{steps}_sbs{stability_slope}_l{self.learn_rate}_b{batch}_one{self.layer1}_two{self.layer2}_only{onlyfirstpoints}_dr{self.dropout}_candle{candle}.h5"
-        self.scalerpath = f"../scalers/1K1KTAPES_scaler_{nowstr}_f{self.lookf}_b{self.lookb}_s{steps}_sbs{stability_slope}_l{self.learn_rate}_b{batch}_one{self.layer1}_two{self.layer2}_only{onlyfirstpoints}_dr{self.dropout}_candle{candle}.pkl"
+        nowstr = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        self.modelpath = f"../../machines/1H1KTAPES_machine_{nowstr}_f{self.lookf}_b{self.lookb}_l{self.learn_rate}_b{self.batch}_one{self.layer1}_two{self.layer2}_dr{self.dropout}_candle{self.candle}.h5"
+        self.scalerpath = f"../../scalers/1K1KTAPES_scaler_{nowstr}_f{self.lookf}_b{self.lookb}_l{self.learn_rate}_b{self.batch}_one{self.layer1}_two{self.layer2}_dr{self.dropout}_candle{self.candle}.pkl"
 
-        if(save):
-            print(f"saving model {self.modelpath} \n and scaler {self.scalerpath}")
-            self.model.save(self.modelpath)
-            if scaler is not None:
-                with open(self.scalerpath, 'wb') as f:
-                    pickle.dump(self.model.scaler, f)
+        print(f"saving model {self.modelpath} \n and scaler {self.scalerpath}")
+        self.model.save(self.modelpath)
+        if scaler is not None:
+            with open(self.scalerpath, 'wb') as f:
+                pickle.dump(scaler, f)
 
     def raws_predict(self, target, features):
-        """ Makes the LAST tape of the given target, features
+        """ Makes the LAST tape of the given target, features (uses internal lookb/f)
         and makes a prediction for the next candle. Accepts both lookf=10 or 1 models,
         as it grabs only the first following value    """
-        lookb = 10
+
         returns_test = calc_returns(target) # true returns
         stacked_test = np.hstack((returns_test.reshape(-1,1), features[1:]))[-10:]
 
         stacked_test_n = self.scaler.transform(stacked_test.reshape(-1, self.scaler.n_features_in_))
 
         stacked_test_n = stacked_test_n.reshape(-1,self.scaler.n_features_in_,1)
-        return_pred_n = self.model.predict(stacked_test_n[-lookb:,:].reshape(1, lookb, self.scaler.n_features_in_), verbose=0)
-
+        return_pred_n = self.model.predict(stacked_test_n[-self.lookb:,:].reshape(1, self.lookb, self.scaler.n_features_in_), verbose=0)
 
         stacked_n = np.full((self.lookf, self.scaler.n_features_in_), np.nan)
 
@@ -130,8 +125,8 @@ class CryptoMachine:
 
     def tape_predict(self, x):
         """ Takes a (normalized) tape and makes a prediction for the next candle """
-
-        return_pred_n = self.model.predict(x.reshape(1, lookb, 13), verbose=0)[0,0,0]
+        """ RAISE WARNING IF TAPES lookb DOES NOT MATCH THE MACHINE """
+        return_pred_n = self.model.predict(x.reshape(1, self.lookb, 13), verbose=0)[0,0,0]
 
         stacked_n = np.full((1, 13), np.nan)
         stacked_n[0,0] = return_pred_n.reshape(-1)
@@ -145,27 +140,27 @@ class CryptoMachine:
             return
 
         # File paths
-        file1 = f"..\\traincurves\\trainerror_{self.modelpath[12:]}.png"
-        file2 = f"..\\traincurves\\mae_{self.modelpath[12:]}.png"
-        file3 = f"..\\traincurves\\valerror_{self.modelpath[12:]}.png"
+        file1 = f"..\\..\\traincurves\\trainerror_{self.modelpath[12:]}.png"
+        file2 = f"..\\..\\traincurves\\mae_{self.modelpath[12:]}.png"
+        file3 = f"..\\..\\traincurves\\valerror_{self.modelpath[12:]}.png"
         deleteplots(file1, file2, file3)
-        time.sleep(1)
 
         # Plot training loss
         plt.plot(self.errorplots, label='Train Loss')
         plt.legend()
         plt.title("Training Error")
-        plt.savefig(f"../traincurves/trainerror_{nowstr}{self.modelpath[12:]}.png")
+        plt.show()
+        #plt.savefig(f"../../traincurves/trainerror_{nowstr}{self.modelpath[12:]}.png")
 
         # Plot validation loss
         plt.plot(self.valplots, label='Validation Loss')
         plt.legend()
         plt.title("Validation Error")
-        plt.savefig(f"../traincurves/valerror_{nowstr}{self.modelpath[12:]}.png")
+        plt.show()
+        #plt.savefig(f"../../traincurves/valerror_{nowstr}{self.modelpath[12:]}.png")
         plt.clf()
 
         print("Saved training curves")
-
 
 
 if __name__ == "__main__":
@@ -173,18 +168,22 @@ if __name__ == "__main__":
     #target_train, target_val, features_train, features_val = load_example_train_val(32200, coin = "BTCUSDT", candle = Client.KLINE_INTERVAL_1HOUR)
     #x_train, y_train, scaler_fitted = slice_tapes(target_train, features_train, lookf, lookb, steps, stability_slope, None, onlyfirstpoints, indices, nowstr, trainorval = "train")
 
-    epochs = 100
+    epochs = 30
     #stability_cut = None#0.5 # 0.05 # where stab_cut * lookb (=100) is the maximal return observed in the train/val/test set
 
     cryptodata = CryptoDataGetter()
-    cryptodata.get_historical_data_trim("1 August 2024 00:00:00", 32000, "BTCUSDT", lookf = 10, lookb = 5, steps = 1)
-    cryptodata.slice_train_and_val()
+    cryptodata.load_simdata(3600)
+    #cryptodata.get_historical_data_trim("1 August 2024 00:00:00", 32000, "BTCUSDT", lookf = 10, lookb = 5, steps = 1)
+    cryptodata.slice_train_and_val(lookb = 10, lookf = 1)
 
     x_train = cryptodata.x_train
     y_train = cryptodata.y_train
     x_val = cryptodata.x_val
     y_val = cryptodata.y_val
+    scaler = cryptodata.scaler
 
     simple_machine = CryptoMachine()
-    simple_machine.init(layer1 = 40, layer2 = 15, lookb = 10, lookf = 5, learn_rate = 0.09 , dropout = 0.0)
+    simple_machine.init(candle = "1h", layer1 = 40, layer2 = 15, lookb = 10, lookf = 1, learn_rate = 0.09 , dropout = 0.0)
     simple_machine.fit(x_train, y_train, x_val, y_val, epochs = epochs, batch = 16)
+    simple_machine.save_model_scaler(scaler)
+    simple_machine.plot()

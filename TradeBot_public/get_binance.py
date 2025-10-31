@@ -50,15 +50,15 @@ class CryptoDataGetter:
         self.end_of_training = None
         self.ncandles = None
         self.coin = None
-        self.lookf, self.lookb, self.steps, self.stability_slope, self.val_train_proportion = 0,0,0,0,0
-        self.x_train, self.y_train, self.x_val, self.y_val, self.scaler_fitted = None, None, None, None, None
+        self.lookf, self.lookb, self.stability_slope, self.val_train_proportion = 0,0,0,0
+        self.x_train, self.y_train, self.x_val, self.y_val, self.scaler = None, None, None, None, None
         self.target_train, self.target_val, self.features_train, self.features_val = 0,0,0,0
-        self.lookf, self.lookb, self.steps, self.stability_slope = 0,0,0,0
 
     def load_simdata(self, sim_N):
         self.target_total = np.load("../target_sim.npy")[:sim_N]
         self.features_total = np.load("../features_sim.npy")[:sim_N]
-        #self.dates_total = np.load("../dates_sim.npy")
+        print("Loading target: {} and features: {}".format(self.target_total.shape, self.features_total.shape))
+        #self.dates_total = np.load("../../dates_sim.npy")
 
     def get_historical_data_trim(self, timedef, coin = "BTCUSDT", candle_length = Client.KLINE_INTERVAL_1HOUR):
         """ Given a end_of_training datetime and N of candles, returns the past N candles and computes the features/technical indicators.
@@ -147,16 +147,17 @@ class CryptoDataGetter:
         self.features_val = self.features_total[int(features.shape[0]*(1-val_train_proportion)):]
         return np.asarray(target), np.asarray(features), np.asarray(timestamps).astype(np.int64), data
 
-    def slice_train_and_val(self):
+    def slice_train_and_val(self, lookb, lookf):
+        self.lookb, self.lookf = lookb, lookf
 
-        self.x_train, self.y_train, self.scaler_fitted = self.slice_tapes(self.target_train, self.features_train, self.lookf, self.lookb, self.steps, self.stability_slope, None, trainorval = "train")
-        print("LSTM In- & Out shapes (training): {}, {}".format(x_train.shape, y_train.shape))
+        self.x_train, self.y_train = self.slice_tapes(self.target_total, self.features_total, self.lookf, self.lookb, self.stability_slope, None, trainorval = "train")
+        print("LSTM In- & Out shapes (training): {}, {}".format(self.x_train.shape, self.y_train.shape))
         print()
-        self.x_val, self.y_val, _ = self.slice_tapes(self.target_val, self.features_val, self.lookf, self.lookb, self.steps, self.stability_slope, self.scaler_fitted, trainorval="val")
-        print("LSTM In- & Out shapes (validation): {}, {}".format(x_val.shape, y_val.shape))
-        return self.x_train, self.y_train, self.x_val, self.y_val
+        self.x_val, self.y_val= self.slice_tapes(self.target_total, self.features_total, self.lookf, self.lookb, self.stability_slope, self.scaler, trainorval="val")
+        print("LSTM In- & Out shapes (validation): {}, {}".format(self.x_val.shape, self.y_val.shape))
+        return self.x_train, self.y_train, self.x_val, self.y_val, self.scaler
 
-    def slice_tapes(self, target, features, lookf, lookb, steps, stab_slope, scaler = None, onlyfirstpoints = None, indices = None, nowstr = " ", trainorval = None):
+    def slice_tapes(self, target, features, lookf, lookb, stab_slope, scaler = None, nowstr = " ", trainorval = None):
         """ Prepares the input for the ML model from tha API fetched data. It cuts and slices the
             data in samples (tapes), and filters out tapes that are not in a stationary distribution"""
         # Indices is either a numpy.loadtxt containing indices or the running index for machines
@@ -172,32 +173,18 @@ class CryptoDataGetter:
         print("Returns: {} +- {}".format(np.mean(returns), np.std(returns)))
         print("Min: {}, Max: {}".format(np.min(returns), np.max(returns)))
 
-
         if scaler == None:
-            scaler = MinMaxScaler(feature_range=(-1, 1))
-            stacked_n = scaler.fit_transform(stacked.reshape(-1,13))
+            self.scaler = MinMaxScaler(feature_range=(-1, 1))
+            stacked_n = self.scaler.fit_transform(stacked.reshape(-1,13))
         else:
-            stacked_n = scaler.transform(stacked.reshape(-1,13))
+            stacked_n = self.scaler.transform(stacked.reshape(-1,13))
 
         stacked_n = stacked_n.reshape(-1,13,1)
         x, y = [], []
 
-        if isinstance(indices, np.ndarray): # Indices file was passed
-            #random_indices = np.random.choice(len(stacked), size=onlyfirstpoints, replace=False)
-            print(indices.shape)
-            select_indices = indices
-            stacked_n = stacked_n[select_indices]
-        elif isinstance(indices, int):    # Generate subsets from a Running index
-            #select_indices = np.random.choice(len(x), size=onlyfirstpoints, replace=False)
-            select_indices = range(indices*onlyfirstpoints, (indices+1)*onlyfirstpoints)
-            print("Subset from {} to {}".format(select_indices[0], select_indices[-1]))
-            stacked_n = stacked_n[select_indices]
-
-            np.savetxt("../indices/"+str(trainorval)+"_indices"+nowstr+".txt", select_indices, fmt='%d')
-
         """ Slicing to get the single tapes (batch_size, time_steps, features)
         If tape contains any return > stab_slope, throw away.     """
-        for i in range(0,len(stacked_n)-lookb-lookf,steps):
+        for i in range(0,len(stacked_n)-lookb-lookf):
             if stab_slope == None: # Dont filter out static distribution
                 x.append(stacked_n[i:i+lookb,:])
                 y.append(stacked_n[i+lookb:i+lookf+lookb,0])
@@ -205,30 +192,30 @@ class CryptoDataGetter:
                 x.append(stacked_n[i:i+lookb,:])
                 y.append(stacked_n[i+lookb:i+lookf+lookb,0])
 
-        return np.asarray(x),  np.asarray(y), scaler
+        return np.asarray(x),  np.asarray(y)
 
 def load_example_train_val(ncandles=3200, coin = "BTCUSDT", candle=Client.KLINE_INTERVAL_1HOUR):
     #start_of_training = datetime.strptime("1 September 2020 00:00:00", "%d %B %Y %H:%M:%S")
     end_of_training = datetime.strptime("1 June 2023 00:00:00", "%d %B %Y %H:%M:%S")
     target_train, features_train, _, _ = get_historical_data_trim([end_of_training, ncandles], coin = "BTCUSDT")
     target_train = k_driver(target_train, features_train)
-    np.save("../target_train_1h.npy", target_train)
-    np.save("../features_train_1h.npy", features_train)
+    np.save("../../target_train_1h.npy", target_train)
+    np.save("../../features_train_1h.npy", features_train)
 
 
-    #target_train = np.load("../target_train_1h.npy")
-    #features_train = np.load("../features_train_1h.npy")
+    #target_train = np.load("../../target_train_1h.npy")
+    #features_train = np.load("../../features_train_1h.npy")
 
     #start_of_val = datetime.strptime("2 January 2024 00:00:00", "%d %B %Y %H:%M:%S")
     end_of_val = datetime.strptime("1 August 2024 00:00:00", "%d %B %Y %H:%M:%S")
 
     target_val, features_val, _, _ = get_historical_data_trim([end_of_val, int(ncandles/4)], coin = "BTCUSDT")
     target_val = k_driver(target_val, features_val)
-    np.save("../target_val_1h.npy", target_val)
-    np.save("../features_val_1h.npy", features_val)
+    np.save("../../target_val_1h.npy", target_val)
+    np.save("../../features_val_1h.npy", features_val)
 
-    #target_val = np.load("../target_val_1h.npy")
-    #features_val = np.load("../features_val_1h.npy")
+    #target_val = np.load("../../target_val_1h.npy")
+    #features_val = np.load("../../features_val_1h.npy")
 
 
     return target_train, target_val, features_train, features_val
@@ -241,10 +228,10 @@ if __name__ == "__main__":
     print("features tr length: {}".format(features_train.shape))
     print("features val length: {}".format(features_val.shape))
 
-    x_train, y_train, scaler_fitted = slice_tapes(target_train, features_train, lookf, lookb, steps, stability_slope, None, onlyfirstpoints, indices, nowstr, trainorval = "train")
+    x_train, y_train, scaler_fitted = slice_tapes(target_train, features_train, lookf, lookb, stability_slope, None, onlyfirstpoints, indices, nowstr, trainorval = "train")
     print("LSTM In- & Out shapes (training): {}, {}".format(x_train.shape, y_train.shape))
     print()
-    x_val, y_val, scaler = slice_tapes(          target_val, features_val, lookf, lookb, steps,      stability_slope, scaler_fitted, int(onlyfirstpoints/4), int(indices), nowstr, trainorval="val")
+    x_val, y_val, scaler = slice_tapes(target_val, features_val, lookf, lookb, stability_slope, scaler_fitted, int(onlyfirstpoints/4), int(indices), nowstr, trainorval="val")
     print("LSTM In- & Out shapes (validation): {}, {}".format(x_val.shape, y_val.shape))
 
 
@@ -260,5 +247,3 @@ if __name__ == "__main__":
 
     start_of_training = datetime.strptime(start_str, "%d %B %Y %H:%M:%S")
     end_of_training = datetime.strptime(end_str, "%d %B %Y %H:%M:%S")
-
-    target, features, dates = get_historical_data_trim([start_of_training, end_of_training], coin = "BTCUSDT")

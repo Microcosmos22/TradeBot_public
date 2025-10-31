@@ -51,7 +51,6 @@ def live_trading1(model, scaler):
 
     target, features, dates = get_historical_data_trim(61)
 
-
     print("First candle is {} UTC".format(datetime.utcfromtimestamp(int(dates[-1])/1000).strftime('%Y-%m-%d %H:%M:%S')))
     firstdate = dates[-1]/1000
     price_obs = target[-1]
