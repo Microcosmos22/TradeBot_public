@@ -1,6 +1,4 @@
 import numpy as np
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 from sklearn.preprocessing import MinMaxScaler
 from binance.client import Client
@@ -11,13 +9,13 @@ import os, sys
 from calc_tools import *
 from get_binance import *
 from plotting import *
+from synthetic_driver import *
 from keras.models import Sequential, load_model
 import pandas as pd
 import scipy.signal as signal
 from tensorflow.keras.layers import LSTM, Dropout, Dense, TimeDistributed
 import pickle
 from tensorflow.keras.optimizers import RMSprop, Adam
-from tensorflow.keras.callbacks import EarlyStopping
 import copy
 
 
@@ -176,7 +174,11 @@ if __name__ == "__main__":
     dt = datetime.strptime("1 August 2024 00:00:00", "%d %B %Y %H:%M:%S")
     cryptodata.get_historical_data_trim([dt, 3200], "BTCUSDT", Client.KLINE_INTERVAL_5MINUTE)
 
+    synth = SyntheticDriver(cryptodata.target_total, cryptodata.features_total)
+    synth_target = synth.discrete_MA(1)
+
     print(cryptodata.target_total)
+    print(synth_target)
     print(cryptodata.features_total)
     xt, yt, xv, yv, scaler = cryptodata.slice_train_and_val(lookb = 10, lookf = 5)
 

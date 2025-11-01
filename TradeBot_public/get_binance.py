@@ -1,7 +1,4 @@
 import numpy as np
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.model_selection import train_test_split, GridSearchCV
-from sklearn.metrics import mean_absolute_error, mean_squared_error
 from binance.client import Client
 import matplotlib.pyplot as plt
 import pickle
@@ -219,7 +216,6 @@ def load_example_train_val(ncandles=3200, coin = "BTCUSDT", candle=Client.KLINE_
 
 
 if __name__ == "__main__":
-
 
 
     print("features tr length: {}".format(features_train.shape))

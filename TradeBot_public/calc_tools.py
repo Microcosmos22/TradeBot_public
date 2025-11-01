@@ -1,8 +1,4 @@
 import numpy as np
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.model_selection import train_test_split, GridSearchCV
-from sklearn.metrics import mean_absolute_error, mean_squared_error
-from binance.client import Client
 import matplotlib.pyplot as plt
 import pickle
 from datetime import datetime, timedelta
@@ -128,7 +124,6 @@ def compute_features_trim(data, timestamp_ms, nfeatures = 13):
     df_for_macd = df[['close']]
 
     close_prices = pd.Series(close_prices)
-
 
 
     # Calculate SMA_20 and SMA_50

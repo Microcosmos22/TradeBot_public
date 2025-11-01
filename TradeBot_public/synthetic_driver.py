@@ -1,0 +1,56 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
+class SyntheticDriver:
+    def __init__(self, target, features):
+        self.target, self.features = target, features
+        self.traded = [0 for k in range(len(self.target))]
+        self.accumulated = [0 for k in range(len(self.target))]
+        self.synth_price = [0 for k in range(len(self.target))]
+
+    def discrete_MA(self, perc):
+        target, features = self.target, self.features
+        buys, sells = [0 for k in range(len(target))], [0 for k in range(len(target))]
+        shortMA, longMA = features[:, 0], features[:, 1]
+        short_prev, long_prev = 0.4, 0.5 # First trade is golden cross
+
+        print(len(self.target))
+
+        for i in range(len(self.target)):
+            short_now, long_now = shortMA[i], longMA[i]
+
+            if short_prev <= long_prev and short_now > long_now: # Golden cross = BUY
+
+                self.traded[i] = perc
+                short_prev = short_now
+                long_prev = long_now
+            elif short_prev >= long_prev and short_now < long_now: # Death cross = SELL
+                self.traded[i] = -perc
+                short_prev = short_now
+                long_prev = long_now
+
+        return self.shift_prices(perc)
+
+    def shift_prices(self, perc):
+        for i in range(len(self.traded)):
+            self.accumulated[i] = -perc/2+float(np.sum(self.traded[:i])) # Accumulated price shift in %
+            self.synth_price[i] = float(self.target[i] + self.accumulated[i]/100*self.target[i])
+
+        print(self.traded[:200])
+        print(self.accumulated[:200])
+        print(self.synth_price[:200])
+
+        plt.plot(self.target)
+        plt.plot(self.synth_price)
+        plt.show()
+        return
+
+    def continuous_MA(self):
+        diff = short_MA - long_MA
+        signal_strength = np.tanh(diff / price)  # normalize, smooth
+        target_position = max_position * signal_strength
+        return
+
+
+if __name__ == "__main__":
+    print("test")
