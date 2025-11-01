@@ -50,7 +50,7 @@ class CryptoDataGetter:
         self.end_of_training = None
         self.ncandles = None
         self.coin = None
-        self.lookf, self.lookb, self.stability_slope, self.val_train_proportion = 0,0,0,0
+        self.lookf, self.lookb, self.stability_slope, self.val_train_proportion = 0,0,0,0.2
         self.x_train, self.y_train, self.x_val, self.y_val, self.scaler = None, None, None, None, None
         self.target_train, self.target_val, self.features_train, self.features_val = 0,0,0,0
 
@@ -59,6 +59,7 @@ class CryptoDataGetter:
         self.features_total = np.load("../features_sim.npy")[:sim_N]
         print("Loading target: {} and features: {}".format(self.target_total.shape, self.features_total.shape))
         #self.dates_total = np.load("../../dates_sim.npy")
+        return self.target_total, self.features_total
 
     def get_historical_data_trim(self, timedef, coin = "BTCUSDT", candle_length = Client.KLINE_INTERVAL_1HOUR):
         """ Given a end_of_training datetime and N of candles, returns the past N candles and computes the features/technical indicators.
@@ -67,7 +68,7 @@ class CryptoDataGetter:
         # 2: timedef is a start_datetime -> retrieve candles until now
         # 3: COMMONLY: timedef is [end_date, int] to retrieve last N candles before "end_date"
         """
-        # Binance API key and secret :)
+        # Binance API key and secret
         api_key = "pxRONzQcbpDoImQXzHqkO6XJWd7WMIKSTyBPtTlkvaCbIGJ0Whcnz8LDw7SavMIx"
         api_secret = "hFXzByh1Fg90Vcxvx8uakDq9n6reH32KswXuYOTzFxxjmAVvMbHRh1lOvMSgHlex"
         client = Client(api_key, api_secret)
@@ -92,9 +93,8 @@ class CryptoDataGetter:
 
         elif isinstance(timedef, datetime):
 
-            symbol = coin
             timedef = timedef.strftime("%Y-%m-%d %H:%M:%S")
-            data = np.asarray(client.get_historical_klines(symbol, candle_length, timedef)).astype(float)
+            data = np.asarray(client.get_historical_klines(coin, candle_length, timedef)).astype(float)
             print("Calling candles since {}".format(timedef))
 
         elif (isinstance(timedef[0], datetime) and type(timedef[1]) == int):
@@ -131,21 +131,18 @@ class CryptoDataGetter:
         # Use closing prices
 
         self.timestamps = data[:, 0]  # First column contains the timestamp (open time)
+        #print(self.timestamps)
         self.target_total, self.features_total = compute_features_trim(data, self.timestamps)
-        self.dates = datetime.strftime("%Y-%m-%d %H:%M:%S")
-
-        print(target.shape, features.shape)
-        if plot:
-            plot_historical_data(target, features)
+        #self.dates = np.asarray([datetime.utcfromtimestamp(int(ts)).strftime("%Y-%m-%d %H:%M:%S") for ts in self.timestamps])
 
         #target_total = k_driver(target_total, features_total)
 
         """ Split target and features into training and validation """
-        self.target_train = self.target_total[:int(target.shape[0]*(1-val_train_proportion))]
-        self.target_val = self.target_total[int(target.shape[0]*(1-val_train_proportion)):]
-        self.features_train = self.features_total[:int(features.shape[0]*(1-val_train_proportion))]
-        self.features_val = self.features_total[int(features.shape[0]*(1-val_train_proportion)):]
-        return np.asarray(target), np.asarray(features), np.asarray(timestamps).astype(np.int64), data
+        self.target_train = self.target_total[:int(self.target_total.shape[0]*(1-self.val_train_proportion))]
+        self.target_val = self.target_total[int(self.target_total.shape[0]*(1-self.val_train_proportion)):]
+        self.features_train = self.features_total[:int(self.features_total.shape[0]*(1-self.val_train_proportion))]
+        self.features_val = self.features_total[int(self.features_total.shape[0]*(1-self.val_train_proportion)):]
+        return np.asarray(self.target_total), np.asarray(self.features_total)#, np.asarray(timestamps).astype(np.int64), data
 
     def slice_train_and_val(self, lookb, lookf):
         self.lookb, self.lookf = lookb, lookf

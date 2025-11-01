@@ -162,8 +162,6 @@ def equil_trader(forw_diff, kasse, btc_kasse, btc_price, equil_const = 100, forw
     sign = np.sign(equil)
 
 
-
-
     if equil > 0: # More Kasse
         out_of_equil = (equil)*equil_const+1 # gives [1, infty]
     else: # More BTC

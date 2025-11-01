@@ -172,9 +172,13 @@ if __name__ == "__main__":
     #stability_cut = None#0.5 # 0.05 # where stab_cut * lookb (=100) is the maximal return observed in the train/val/test set
 
     cryptodata = CryptoDataGetter()
-    cryptodata.load_simdata(3600)
-    #cryptodata.get_historical_data_trim("1 August 2024 00:00:00", 32000, "BTCUSDT", lookf = 10, lookb = 5, steps = 1)
-    cryptodata.slice_train_and_val(lookb = 10, lookf = 1)
+    #target, features = cryptodata.load_simdata(3600)
+    dt = datetime.strptime("1 August 2024 00:00:00", "%d %B %Y %H:%M:%S")
+    cryptodata.get_historical_data_trim([dt, 3200], "BTCUSDT", Client.KLINE_INTERVAL_5MINUTE)
+
+    print(cryptodata.target_total)
+    print(cryptodata.features_total)
+    xt, yt, xv, yv, scaler = cryptodata.slice_train_and_val(lookb = 10, lookf = 5)
 
     x_train = cryptodata.x_train
     y_train = cryptodata.y_train
