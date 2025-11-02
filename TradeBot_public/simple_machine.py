@@ -145,18 +145,13 @@ class CryptoMachine:
 
         # Plot training loss
         plt.plot(self.errorplots, label='Train Loss')
-        plt.legend()
-        plt.title("Training Error")
-        plt.show()
-        #plt.savefig(f"../../traincurves/trainerror_{nowstr}{self.modelpath[12:]}.png")
+
 
         # Plot validation loss
         plt.plot(self.valplots, label='Validation Loss')
         plt.legend()
-        plt.title("Validation Error")
+        plt.title("Training/Val Error")
         plt.show()
-        #plt.savefig(f"../../traincurves/valerror_{nowstr}{self.modelpath[12:]}.png")
-        plt.clf()
 
         print("Saved training curves")
 
@@ -166,30 +161,18 @@ if __name__ == "__main__":
     #target_train, target_val, features_train, features_val = load_example_train_val(32200, coin = "BTCUSDT", candle = Client.KLINE_INTERVAL_1HOUR)
     #x_train, y_train, scaler_fitted = slice_tapes(target_train, features_train, lookf, lookb, steps, stability_slope, None, onlyfirstpoints, indices, nowstr, trainorval = "train")
 
-    epochs = 30
     #stability_cut = None#0.5 # 0.05 # where stab_cut * lookb (=100) is the maximal return observed in the train/val/test set
 
     cryptodata = CryptoDataGetter()
-    #target, features = cryptodata.load_simdata(3600)
-    dt = datetime.strptime("1 August 2024 00:00:00", "%d %B %Y %H:%M:%S")
-    cryptodata.get_historical_data_trim([dt, 3200], "BTCUSDT", Client.KLINE_INTERVAL_5MINUTE)
+    cryptodata.get_historical_data_trim(["1 August 2024 00:00:00", 3200], "BTCUSDT", Client.KLINE_INTERVAL_5MINUTE)
+    cryptodata.plot_candlechart(200)
 
     synth = SyntheticDriver(cryptodata.target_total, cryptodata.features_total)
     synth_target = synth.discrete_MA(1)
 
-    print(cryptodata.target_total)
-    print(synth_target)
-    print(cryptodata.features_total)
-    xt, yt, xv, yv, scaler = cryptodata.slice_train_and_val(lookb = 10, lookf = 5)
-
-    x_train = cryptodata.x_train
-    y_train = cryptodata.y_train
-    x_val = cryptodata.x_val
-    y_val = cryptodata.y_val
-    scaler = cryptodata.scaler
+    x_train, y_train, x_val, y_val, scaler = cryptodata.slice_train_and_val(lookb = 10, lookf = 5, target = synth_target, features=cryptodata.features_total)
 
     simple_machine = CryptoMachine()
     simple_machine.init(candle = "1h", layer1 = 40, layer2 = 15, lookb = 10, lookf = 1, learn_rate = 0.09 , dropout = 0.0)
-    simple_machine.fit(x_train, y_train, x_val, y_val, epochs = epochs, batch = 16)
-    simple_machine.save_model_scaler(scaler)
+    simple_machine.fit(x_train, y_train, x_val, y_val, epochs = 30, batch = 16)
     simple_machine.plot()

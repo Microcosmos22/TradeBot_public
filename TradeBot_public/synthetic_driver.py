@@ -14,8 +14,6 @@ class SyntheticDriver:
         shortMA, longMA = features[:, 0], features[:, 1]
         short_prev, long_prev = 0.4, 0.5 # First trade is golden cross
 
-        print(len(self.target))
-
         for i in range(len(self.target)):
             short_now, long_now = shortMA[i], longMA[i]
 
@@ -36,12 +34,8 @@ class SyntheticDriver:
             self.accumulated[i] = -perc/2+float(np.sum(self.traded[:i])) # Accumulated price shift in %
             self.synth_price[i] = float(self.target[i] + self.accumulated[i]/100*self.target[i])
 
-        print(self.traded[:200])
-        print(self.accumulated[:200])
-        print(self.synth_price[:200])
-
-        plt.plot(self.target)
-        plt.plot(self.synth_price)
+        #plt.plot(self.target)
+        #plt.plot(self.synth_price)
         plt.show()
         return
 

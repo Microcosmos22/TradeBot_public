@@ -7,6 +7,8 @@ import os, sys
 from calc_tools import *
 from plotting import *
 import copy
+import plotly
+import plotly.graph_objects as go
 
 def candle2interval(candle_length):
     """ From a candle length, it returns a timedelta of the candle time window """
@@ -47,6 +49,7 @@ class CryptoDataGetter:
         self.end_of_training = None
         self.ncandles = None
         self.coin = None
+        self.data = None
         self.lookf, self.lookb, self.stability_slope, self.val_train_proportion = 0,0,0,0.2
         self.x_train, self.y_train, self.x_val, self.y_val, self.scaler = None, None, None, None, None
         self.target_train, self.target_val, self.features_train, self.features_val = 0,0,0,0
@@ -88,15 +91,13 @@ class CryptoDataGetter:
 
             print("Calling last {} candles".format(data[:, 0].shape[0]))
 
-        elif isinstance(timedef, datetime):
+        elif isinstance(timedef, str):
 
-            timedef = timedef.strftime("%Y-%m-%d %H:%M:%S")
             data = np.asarray(client.get_historical_klines(coin, candle_length, timedef)).astype(float)
             print("Calling candles since {}".format(timedef))
 
-        elif (isinstance(timedef[0], datetime) and type(timedef[1]) == int):
-
-            end_date = timedef[0]
+        elif (isinstance(timedef[0], str) and type(timedef[1]) == int):
+            end_date = datetime.strptime(timedef[0], "%d %B %Y %H:%M:%S")
             n_candles = timedef[1]
 
             interval = candle2interval(candle_length)
@@ -123,6 +124,10 @@ class CryptoDataGetter:
             end_str=end_date.strftime("%Y-%m-%d %H:%M:%S")))
             print("calling {} candles between {} and {}".format(data.shape, timedef[0].strftime("%d %b, %Y %H:%M:%S"), timedef[1].strftime("%Y-%m-%d %H:%M:%S")))
 
+        columns = ['timestamp', 'open', 'high', 'low', 'close', 'volume',
+               'close_time', 'quote_asset_volume', 'number_of_trades',
+               'taker_buy_base_asset_volume', 'taker_buy_quote_asset_volume', 'ignore']
+        self.data = pd.DataFrame(data, columns=columns)
         print(data.shape)
         """ (time, open, high, low, close, volume, close_time etc.) """
         # Use closing prices
@@ -141,13 +146,16 @@ class CryptoDataGetter:
         self.features_val = self.features_total[int(self.features_total.shape[0]*(1-self.val_train_proportion)):]
         return np.asarray(self.target_total), np.asarray(self.features_total)#, np.asarray(timestamps).astype(np.int64), data
 
-    def slice_train_and_val(self, lookb, lookf):
+    def slice_train_and_val(self, lookb, lookf, target = None, features = None):
         self.lookb, self.lookf = lookb, lookf
+        if target == None:
+            target = self.target_total
+            features = self.features_total
 
-        self.x_train, self.y_train = self.slice_tapes(self.target_total, self.features_total, self.lookf, self.lookb, self.stability_slope, None, trainorval = "train")
+        self.x_train, self.y_train = self.slice_tapes(target, features, self.lookf, self.lookb, self.stability_slope, None, trainorval = "train")
         print("LSTM In- & Out shapes (training): {}, {}".format(self.x_train.shape, self.y_train.shape))
         print()
-        self.x_val, self.y_val= self.slice_tapes(self.target_total, self.features_total, self.lookf, self.lookb, self.stability_slope, self.scaler, trainorval="val")
+        self.x_val, self.y_val= self.slice_tapes(target, features, self.lookf, self.lookb, self.stability_slope, self.scaler, trainorval="val")
         print("LSTM In- & Out shapes (validation): {}, {}".format(self.x_val.shape, self.y_val.shape))
         return self.x_train, self.y_train, self.x_val, self.y_val, self.scaler
 
@@ -187,6 +195,21 @@ class CryptoDataGetter:
                 y.append(stacked_n[i+lookb:i+lookf+lookb,0])
 
         return np.asarray(x),  np.asarray(y)
+
+    def plot_candlechart(self, N):
+
+        fig = go.Figure(data=[
+        go.Candlestick(
+            x=self.data[['timestamp']].to_numpy().flatten()[:N],
+            open=self.data[['open']].to_numpy().flatten()[:N],
+            high=self.data[['high']].to_numpy().flatten()[:N],
+            low=self.data[['low']].to_numpy().flatten()[:N],
+            close=self.data['close'].to_numpy().flatten()[:N]
+            )
+        ])
+        fig.update_layout(xaxis_rangeslider_visible=False)
+        fig.show()
+        return
 
 def load_example_train_val(ncandles=3200, coin = "BTCUSDT", candle=Client.KLINE_INTERVAL_1HOUR):
     #start_of_training = datetime.strptime("1 September 2020 00:00:00", "%d %B %Y %H:%M:%S")
