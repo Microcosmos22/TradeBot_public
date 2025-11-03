@@ -17,6 +17,7 @@ from tensorflow.keras.layers import LSTM, Dropout, Dense, TimeDistributed
 import pickle
 from tensorflow.keras.optimizers import RMSprop, Adam
 import copy
+from tensorflow.keras.callbacks import Callback
 
 
 def deleteplots(file1, file2, file3):
@@ -44,7 +45,9 @@ class CryptoMachine:
         self.mae = None
         self.modelpath = None
         self.scalerpath = None
+        self.epochs = None
         self.batch = None
+        self.error_batch_epoch = None
 
     def init(self, candle, layer1, layer2, lookb, lookf, learn_rate, dropout):
         self.candle, self.layer1, self.layer2, self.lookb, self.lookf, self.learn_rate, self.dropout = candle, layer1, layer2, lookb, lookf, learn_rate, dropout
@@ -75,19 +78,25 @@ class CryptoMachine:
 
     def fit(self, x_train, y_train, x_val, y_val, epochs, batch,
             save=False, candle=1, nowstr="NOW", plot_curves=True):
+        self.epochs = epochs
+
+        logger = BatchLossLogger(validation_data=(x_val, y_val), batch = batch)
 
         self.batch = batch
         history = self.model.fit(
             x_train, y_train,
             epochs=epochs,
             batch_size=batch,
-            validation_data=(x_val, y_val)
+            validation_data=(x_val, y_val),
+            callbacks=[logger]
         )
+
+        self.error_batch_epoch = logger.epoch_batch_losses
 
         # Save training metrics
         self.errorplots = np.log(history.history['loss'])
         self.valplots = np.log(history.history['val_loss'])
-        self.mae = np.log(history.history['mae'])
+
 
     def save_model_scaler(self, scaler):
         # Define file paths
@@ -137,23 +146,74 @@ class CryptoMachine:
             print("No training history to plot.")
             return
 
-        # File paths
-        file1 = f"..\\..\\traincurves\\trainerror_{self.modelpath[12:]}.png"
-        file2 = f"..\\..\\traincurves\\mae_{self.modelpath[12:]}.png"
-        file3 = f"..\\..\\traincurves\\valerror_{self.modelpath[12:]}.png"
-        deleteplots(file1, file2, file3)
+        plt.style.use('ggplot') #Change/Remove This If you Want
 
-        # Plot training loss
-        plt.plot(self.errorplots, label='Train Loss')
+        print(np.std(self.error_batch_epoch, axis=1))
+        print(len(self.error_batch_epoch))
 
+        epochs = self.epochs-1
+        train_err = self.errorplots[1:]
+        val_err = self.valplots[1:]
+        train_std = np.std(self.error_batch_epoch, axis=1)[1:] / 2  # your shaded region
 
-        # Plot validation loss
-        plt.plot(self.valplots, label='Validation Loss')
-        plt.legend()
-        plt.title("Training/Val Error")
+        # Create 1 row, 2 columns
+        fig, axes = plt.subplots(1, 2, figsize=(14, 5), sharex=True, sharey=True)
+
+        # --- Training error plot ---
+        axes[0].plot(np.arange(epochs), train_err, color='blue', label='Train Error', linewidth=1.0)
+        axes[0].fill_between(np.arange(epochs),
+                             train_err - train_std,
+                             train_err + train_std,
+                             color='blue', alpha=0.4)
+        axes[0].set_title("Training Error")
+        axes[0].set_xlabel("Epochs")
+        axes[0].set_ylabel("Error")
+        axes[0].legend(loc='best')
+
+        # --- Validation error plot ---
+        axes[1].plot(np.arange(epochs), val_err, color='red', label='Validation Error', linewidth=1.0)
+        axes[1].set_title("Validation Error")
+        axes[1].set_xlabel("Epochs")
+        axes[1].legend(loc='best')
+
+        plt.tight_layout()
         plt.show()
 
         print("Saved training curves")
+
+class BatchLossLogger(Callback):
+    def __init__(self, validation_data, batch):
+        super().__init__()
+        self.validation_data = validation_data
+        self.batch = batch
+
+    def on_train_begin(self, logs=None):
+        self.epoch_batch_losses = []  # list of lists
+        self.val_batch_losses = []
+
+    def on_epoch_begin(self, epoch, logs=None):
+        # start a new list for this epoch
+        self.current_epoch_losses = []
+
+    def on_batch_end(self, batch, logs=None):
+        # append the batch loss for this epoch
+        self.current_epoch_losses.append(logs.get('loss'))
+
+    def on_epoch_end(self, epoch, logs=None):
+        # store the full list of batch losses for this epoch
+        self.epoch_batch_losses.append(self.current_epoch_losses)
+
+        # Run validation in batches
+        X_val, y_val = self.validation_data
+        val_losses = []
+
+        for i in range(0, len(X_val), self.batch):
+            X_batch = X_val[i:i+self.batch]
+            y_batch = y_val[i:i+self.batch]
+            val_loss = self.model.evaluate(X_batch, y_batch, verbose=0)
+            val_losses.append(val_loss)
+
+        self.val_batch_losses.append(val_losses)
 
 
 if __name__ == "__main__":
@@ -165,7 +225,7 @@ if __name__ == "__main__":
 
     cryptodata = CryptoDataGetter()
     cryptodata.get_historical_data_trim(["1 August 2024 00:00:00", 3200], "BTCUSDT", Client.KLINE_INTERVAL_5MINUTE)
-    cryptodata.plot_candlechart(200)
+    #cryptodata.plot_candlechart(200)
 
     synth = SyntheticDriver(cryptodata.target_total, cryptodata.features_total)
     synth_target = synth.discrete_MA(1)
