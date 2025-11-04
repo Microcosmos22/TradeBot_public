@@ -8,6 +8,50 @@ import pickle
 from datetime import datetime, timedelta
 import os, sys
 
+class MachinePlotter:
+    def __init__(self):
+        return
+
+    def plotmachines(self, train_mean, train_std, val_mean, val_std):
+
+        plt.style.use('ggplot') #Change/Remove This If you Want
+
+        epochs = len(train_mean)
+
+        # Create 1 row, 2 columns
+        fig, axes = plt.subplots(1, 2, figsize=(14, 5), sharex=True, sharey=True)
+
+        # --- Training error plot ---
+        axes[0].plot(np.arange(epochs), train_mean, color='blue', label='Train Error', linewidth=1.0)
+        axes[0].fill_between(np.arange(epochs),
+                             train_mean - train_std,
+                             train_mean + train_std,
+                             color='blue', alpha=0.4)
+        axes[0].errorbar(x=[epochs - 1], y=[train_mean[-1]], yerr=[train_std[-1]],
+            fmt='o', color='blue', ecolor='blue',           # color of error bar
+            elinewidth=1.5, capsize=4, label='Final ±1σ'
+        )
+        axes[0].set_title("Training Error")
+        axes[0].set_xlabel("Epochs")
+        axes[0].set_ylabel("Error")
+        axes[0].legend(loc='best')
+
+
+        # --- Validation error plot ---
+        axes[1].plot(np.arange(epochs), val_mean, color='red', label='Validation Error', linewidth=1.0)
+        axes[1].errorbar(x=[epochs - 1], y=[val_mean[-1]], yerr=[val_std],
+            fmt='o', color='red', ecolor='red',           # color of error bar
+            elinewidth=1.5, capsize=4, label='Final ±1σ'
+        )
+        axes[1].set_title("Validation Error")
+        axes[1].set_xlabel("Epochs")
+        axes[1].legend(loc='best')
+
+        plt.tight_layout()
+        plt.show()
+
+        print("Saved training curves")
+
 def plot_test_train_predictions_grid(trues_test, preds_test, tres_train, preds_train, identifier):
     # Create a 4x5 grid of subplots
     fig, axes = plt.subplots(2, 2, figsize=(15, 10))  # Adjust figsize as needed
@@ -21,7 +65,7 @@ def plot_test_train_predictions_grid(trues_test, preds_test, tres_train, preds_t
         axes[i].plot(preds_train[i], label="pred")
         axes[i].set_title(f"Train")  # Set title for each subplot
         axes[i].legend()
-        
+
     for i in range(2,4):  # 4x5 = 20 subplots
         axes[i].plot(trues_test[i], label="true")  # Example plot, replace with your data
         axes[i].plot(preds_test[i], label="pred")
@@ -57,7 +101,7 @@ def plot_test_predictions_grid(trues, preds):
     plt.show()
 
 def plot_historical_data(target, features):
-    
+
     plt.plot(target)
     plt.plot(features[:,0], label="SMA_20")
     plt.plot(features[:,1], label="SMA_50")
@@ -73,11 +117,11 @@ def plot_historical_data(target, features):
     plt.plot(features[:,11], label="hour")
     plt.legend()
     plt.show()
-    
+
 
 
 def plot_after_split(y_test, par_test):
-    
+
     plt.title("After split")
     plt.plot(y_test, label="true price")
     plt.plot(par_test[:,0], label="SMA_20")
@@ -92,7 +136,7 @@ def plot_after_split(y_test, par_test):
 
 def plot_future_results(y_pred, y_test, date_test):
     # Plot results
-   
+
     plt.figure(figsize=(12, 6))
     plt.plot(date_test, y_test, label='True Prices', color='blue')
     plt.plot(date_test, y_pred, label='Predicted Prices', color='red', linestyle='dashed')
@@ -105,18 +149,18 @@ def plot_future_results(y_pred, y_test, date_test):
     # Plot buy/sell signals
     """plt.figure(figsize=(12, 6))
     plt.plot([i for i in range(len(y_test))], y_test, label='True Prices', color='blue')
-    
+
     plt.scatter(np.arange(len(buy_signal))[buy_signal == 1], y_test[buy_signal == 1], color='green', label='Buy Signal')
-    
+
     plt.scatter(np.arange(len(sell_signal))[sell_signal == -1], y_test[sell_signal == -1], color='red', label='Sell Signal')
-    
+
     plt.title("Buy/Sell Signals on True Prices")
     plt.xlabel("Time")
     plt.ylabel("Closing Price")
     plt.legend()
     plt.show()
     """
-    
-    
+
+
 if __name__ == "__main__":
     print("runnin")

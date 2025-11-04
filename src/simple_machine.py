@@ -10,13 +10,15 @@ from calc_tools import *
 from get_binance import *
 from plotting import *
 from synthetic_driver import *
-from keras.models import Sequential, load_model
 import pandas as pd
 import scipy.signal as signal
-from tensorflow.keras.layers import LSTM, Dropout, Dense, TimeDistributed
 import pickle
-from tensorflow.keras.optimizers import RMSprop, Adam
 import copy
+
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import LSTM, Dense, Dropout, TimeDistributed
+from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.callbacks import Callback
 
 
@@ -40,14 +42,15 @@ class CryptoMachine:
         self.model = None
         self.scaler = None
 
-        self.errorplots = None
-        self.valplots = None
+        self.trainmean = None
+        self.valmean = None
         self.mae = None
         self.modelpath = None
         self.scalerpath = None
         self.epochs = None
         self.batch = None
         self.error_batch_epoch = None
+        self.logger = None
 
     def init(self, candle, layer1, layer2, lookb, lookf, learn_rate, dropout):
         self.candle, self.layer1, self.layer2, self.lookb, self.lookf, self.learn_rate, self.dropout = candle, layer1, layer2, lookb, lookf, learn_rate, dropout
@@ -80,7 +83,7 @@ class CryptoMachine:
             save=False, candle=1, nowstr="NOW", plot_curves=True):
         self.epochs = epochs
 
-        logger = BatchLossLogger(validation_data=(x_val, y_val), batch = batch)
+        self.logger = BatchLossLogger(validation_data=(x_val, y_val), batch = batch)
 
         self.batch = batch
         history = self.model.fit(
@@ -88,14 +91,17 @@ class CryptoMachine:
             epochs=epochs,
             batch_size=batch,
             validation_data=(x_val, y_val),
-            callbacks=[logger]
+            callbacks=[self.logger]
         )
 
-        self.error_batch_epoch = logger.epoch_batch_losses
-
         # Save training metrics
-        self.errorplots = np.log(history.history['loss'])
-        self.valplots = np.log(history.history['val_loss'])
+        self.trainmean = np.log(history.history['loss'])
+        self.valmean = np.log(history.history['val_loss'])
+
+        self.train_std = np.std(self.logger.train_batch_losses, axis=1)
+        self.val_stdfinal = self.calc_val_std(x_val, y_val)
+
+        return self.trainmean, self.train_std, self.valmean, self.val_stdfinal
 
 
     def save_model_scaler(self, scaler):
@@ -141,54 +147,29 @@ class CryptoMachine:
 
         return stacked_pred
 
-    def plot(self, nowstr="NOW"):
-        if self.errorplots is None or self.valplots is None:
-            print("No training history to plot.")
-            return
+    def calc_val_std(self, x_val, y_val):
+        # x_val, y_val are your validation sets
+        val_batch_losses = []
 
-        plt.style.use('ggplot') #Change/Remove This If you Want
+        for i in range(0, len(x_val), self.batch):
+            X_batch = x_val[i:i+self.batch]
+            y_batch = y_val[i:i+self.batch]
+            batch_loss = simple_machine.model.evaluate(X_batch, y_batch, verbose=0)
+            val_batch_losses.append(batch_loss)
 
-        print(np.std(self.error_batch_epoch, axis=1))
-        print(len(self.error_batch_epoch))
+        val_batch_losses = np.array(val_batch_losses)
+        self.val_mean = np.mean(val_batch_losses)
+        self.val_std = np.std(val_batch_losses)
+        return self.val_std
 
-        epochs = self.epochs-1
-        train_err = self.errorplots[1:]
-        val_err = self.valplots[1:]
-        train_std = np.std(self.error_batch_epoch, axis=1)[1:] / 2  # your shaded region
-
-        # Create 1 row, 2 columns
-        fig, axes = plt.subplots(1, 2, figsize=(14, 5), sharex=True, sharey=True)
-
-        # --- Training error plot ---
-        axes[0].plot(np.arange(epochs), train_err, color='blue', label='Train Error', linewidth=1.0)
-        axes[0].fill_between(np.arange(epochs),
-                             train_err - train_std,
-                             train_err + train_std,
-                             color='blue', alpha=0.4)
-        axes[0].set_title("Training Error")
-        axes[0].set_xlabel("Epochs")
-        axes[0].set_ylabel("Error")
-        axes[0].legend(loc='best')
-
-        # --- Validation error plot ---
-        axes[1].plot(np.arange(epochs), val_err, color='red', label='Validation Error', linewidth=1.0)
-        axes[1].set_title("Validation Error")
-        axes[1].set_xlabel("Epochs")
-        axes[1].legend(loc='best')
-
-        plt.tight_layout()
-        plt.show()
-
-        print("Saved training curves")
-
-class BatchLossLogger(Callback):
+class BatchLossLogger(tf.keras.callbacks.Callback):
     def __init__(self, validation_data, batch):
         super().__init__()
         self.validation_data = validation_data
         self.batch = batch
 
     def on_train_begin(self, logs=None):
-        self.epoch_batch_losses = []  # list of lists
+        self.train_batch_losses = []  # list of lists
         self.val_batch_losses = []
 
     def on_epoch_begin(self, epoch, logs=None):
@@ -201,38 +182,44 @@ class BatchLossLogger(Callback):
 
     def on_epoch_end(self, epoch, logs=None):
         # store the full list of batch losses for this epoch
-        self.epoch_batch_losses.append(self.current_epoch_losses)
-
-        # Run validation in batches
-        X_val, y_val = self.validation_data
-        val_losses = []
-
-        for i in range(0, len(X_val), self.batch):
-            X_batch = X_val[i:i+self.batch]
-            y_batch = y_val[i:i+self.batch]
-            val_loss = self.model.evaluate(X_batch, y_batch, verbose=0)
-            val_losses.append(val_loss)
-
-        self.val_batch_losses.append(val_losses)
+        self.train_batch_losses.append(self.current_epoch_losses)
 
 
 if __name__ == "__main__":
 
     #target_train, target_val, features_train, features_val = load_example_train_val(32200, coin = "BTCUSDT", candle = Client.KLINE_INTERVAL_1HOUR)
     #x_train, y_train, scaler_fitted = slice_tapes(target_train, features_train, lookf, lookb, steps, stability_slope, None, onlyfirstpoints, indices, nowstr, trainorval = "train")
-
     #stability_cut = None#0.5 # 0.05 # where stab_cut * lookb (=100) is the maximal return observed in the train/val/test set
 
     cryptodata = CryptoDataGetter()
-    cryptodata.get_historical_data_trim(["1 August 2024 00:00:00", 3200], "BTCUSDT", Client.KLINE_INTERVAL_5MINUTE)
+    target, features = cryptodata.get_historical_data_trim(["1 August 2024 00:00:00", 3200], "BTCUSDT", Client.KLINE_INTERVAL_5MINUTE)
     #cryptodata.plot_candlechart(200)
 
-    synth = SyntheticDriver(cryptodata.target_total, cryptodata.features_total)
+    synth = SyntheticDriver(cryptodata)
     synth_target = synth.discrete_MA(1)
 
-    x_train, y_train, x_val, y_val, scaler = cryptodata.slice_train_and_val(lookb = 10, lookf = 5, target = synth_target, features=cryptodata.features_total)
+
+    """ ############################################ """
+    target_train, target_val, features_train, features_val = cryptodata.split_train_val()
+
+    x_train, y_train, x_val, y_val, scaler = cryptodata.slice_alltapes(lookb = 10, lookf = 5)
 
     simple_machine = CryptoMachine()
     simple_machine.init(candle = "1h", layer1 = 40, layer2 = 15, lookb = 10, lookf = 1, learn_rate = 0.09 , dropout = 0.0)
-    simple_machine.fit(x_train, y_train, x_val, y_val, epochs = 30, batch = 16)
-    simple_machine.plot()
+    trainmean, train_std, valmean, val_stdfinal = simple_machine.fit(x_train, y_train, x_val, y_val, epochs = 30, batch = 16)
+
+
+    plot = MachinePlotter()
+    plot.plotmachines(trainmean, train_std, valmean, val_stdfinal)
+
+    """ ############################################ """
+    cryptodata.split_train_val(target_total = synth_target, features_total = cryptodata.features_total)
+
+    x_train, y_train, x_val, y_val, scaler = cryptodata.slice_alltapes(lookb = 10, lookf = 5)
+
+    simple_machine = CryptoMachine()
+    simple_machine.init(candle = "1h", layer1 = 40, layer2 = 15, lookb = 10, lookf = 1, learn_rate = 0.09 , dropout = 0.0)
+    trainmean, train_std, valmean, val_stdfinal = simple_machine.fit(x_train, y_train, x_val, y_val, epochs = 30, batch = 16)
+
+    plot = MachinePlotter()
+    plot.plotmachines(trainmean, train_std, valmean, val_stdfinal)

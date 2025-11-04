@@ -113,7 +113,6 @@ class CryptoDataGetter:
 
             print("Calling last {} candles before {} (starting {})".format(n_candles, end_date, start_date))
 
-
         elif (isinstance(timedef[0], datetime) and isinstance(timedef[1], datetime)):
             start_date = timedef[0]
             end_date = timedef[1]
@@ -137,25 +136,31 @@ class CryptoDataGetter:
         self.target_total, self.features_total = compute_features_trim(data, self.timestamps)
         #self.dates = np.asarray([datetime.utcfromtimestamp(int(ts)).strftime("%Y-%m-%d %H:%M:%S") for ts in self.timestamps])
 
-        #target_total = k_driver(target_total, features_total)
-
-        """ Split target and features into training and validation """
-        self.target_train = self.target_total[:int(self.target_total.shape[0]*(1-self.val_train_proportion))]
-        self.target_val = self.target_total[int(self.target_total.shape[0]*(1-self.val_train_proportion)):]
-        self.features_train = self.features_total[:int(self.features_total.shape[0]*(1-self.val_train_proportion))]
-        self.features_val = self.features_total[int(self.features_total.shape[0]*(1-self.val_train_proportion)):]
         return np.asarray(self.target_total), np.asarray(self.features_total)#, np.asarray(timestamps).astype(np.int64), data
 
-    def slice_train_and_val(self, lookb, lookf, target = None, features = None):
-        self.lookb, self.lookf = lookb, lookf
-        if target == None:
-            target = self.target_total
-            features = self.features_total
+    def split_train_val(self, target_total = None, features_total = None):
+        if target_total is None:
+            target_total = self.target_total
+        if features_total is None:
+            features_total = self.features_total
 
-        self.x_train, self.y_train = self.slice_tapes(target, features, self.lookf, self.lookb, self.stability_slope, None, trainorval = "train")
+        split_idx = int(self.target_total.shape[0]*(1-self.val_train_proportion))
+
+        """ Split target and features into training and validation """
+        self.target_train = target_total[:split_idx]
+        self.target_val = target_total[split_idx:]
+        self.features_train = features_total[:split_idx]
+        self.features_val = features_total[split_idx:]
+
+        return self.target_train, self.target_val, self.features_train, self.features_val
+
+    def slice_alltapes(self, lookb, lookf):
+        self.lookb, self.lookf = lookb, lookf
+
+        self.x_train, self.y_train = self.slice_tapes(self.target_train, self.features_train, self.lookf, self.lookb, self.stability_slope, None, trainorval = "train")
         print("LSTM In- & Out shapes (training): {}, {}".format(self.x_train.shape, self.y_train.shape))
         print()
-        self.x_val, self.y_val= self.slice_tapes(target, features, self.lookf, self.lookb, self.stability_slope, self.scaler, trainorval="val")
+        self.x_val, self.y_val= self.slice_tapes(self.target_val, self.features_val, self.lookf, self.lookb, self.stability_slope, self.scaler, trainorval="val")
         print("LSTM In- & Out shapes (validation): {}, {}".format(self.x_val.shape, self.y_val.shape))
         return self.x_train, self.y_train, self.x_val, self.y_val, self.scaler
 
@@ -167,13 +172,13 @@ class CryptoDataGetter:
 
         if stab_slope != None:
             stab_slope = float(stab_slope)
-            print("Filter out any tapes containing return > {}% of the max return".format(stab_slope*100))
+            print("Filter out any tapes containing return > {:.2f}% of the max return".format(stab_slope*100))
 
         returns = calc_returns(target)
         stacked = np.hstack((returns.reshape(-1,1), features.reshape(-1,12)[1:,:]))
 
-        print("Returns: {} +- {}".format(np.mean(returns), np.std(returns)))
-        print("Min: {}, Max: {}".format(np.min(returns), np.max(returns)))
+        print("Returns: {:.2f} +- {:.2f}".format(np.mean(returns), np.std(returns)))
+        print("Min: {:.2f}, Max: {:.2f}".format(np.min(returns), np.max(returns)))
 
         if scaler == None:
             self.scaler = MinMaxScaler(feature_range=(-1, 1))

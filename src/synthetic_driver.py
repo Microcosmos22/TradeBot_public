@@ -2,8 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 class SyntheticDriver:
-    def __init__(self, target, features):
-        self.target, self.features = target, features
+    def __init__(self, cryptodata):
+        self.target, self.features = cryptodata.target_total, cryptodata.features_total
         self.traded = [0 for k in range(len(self.target))]
         self.accumulated = [0 for k in range(len(self.target))]
         self.synth_price = [0 for k in range(len(self.target))]
