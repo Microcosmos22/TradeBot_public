@@ -10,6 +10,15 @@ import os, sys
 
 class MachinePlotter:
     def __init__(self):
+        self.blue_colors = [
+            "lightblue", "skyblue", "deepskyblue", "dodgerblue",
+            "cornflowerblue", "royalblue", "blue", "mediumblue", "navy"
+        ]
+
+        self.red_colors = [
+            "lightcoral", "salmon", "darksalmon", "tomato",
+            "red", "firebrick", "darkred", "indianred", "crimson"
+        ]
         return
 
     def plotmachines(self, train_mean, train_std, val_mean, val_std):

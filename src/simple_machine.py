@@ -60,12 +60,8 @@ class CryptoMachine:
         self.model.add(LSTM(layer1, return_sequences=True, input_shape=(lookb, 13)))
         self.model.add(Dropout(dropout))
 
-        if lookf == 1:
-            self.model.add(LSTM(layer2, activation="sigmoid", return_sequences=False))
-            self.model.add(Dense(1, activation="sigmoid"))
-        else:
-            self.model.add(LSTM(layer2, activation="sigmoid", return_sequences=True))
-            self.model.add(TimeDistributed(Dense(1, activation="sigmoid")))
+        self.model.add(LSTM(layer2, activation="sigmoid", return_sequences=False))
+        self.model.add(Dense(1, activation="sigmoid"))
 
         optimizer = Adam(learning_rate=float(learn_rate))
         self.model.compile(loss='mean_squared_error', optimizer=optimizer, metrics=['mae', 'mse'])
@@ -196,7 +192,7 @@ if __name__ == "__main__":
     #cryptodata.plot_candlechart(200)
 
     synth = SyntheticDriver(cryptodata)
-    synth_target = synth.discrete_MA(1)
+    synth_target = synth.discrete_MA(3)
 
 
     """ ############################################ """

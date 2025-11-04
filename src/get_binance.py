@@ -170,15 +170,11 @@ class CryptoDataGetter:
         # Indices is either a numpy.loadtxt containing indices or the running index for machines
         # that are searching good subsets of data
 
-        if stab_slope != None:
-            stab_slope = float(stab_slope)
-            print("Filter out any tapes containing return > {:.2f}% of the max return".format(stab_slope*100))
-
         returns = calc_returns(target)
         stacked = np.hstack((returns.reshape(-1,1), features.reshape(-1,12)[1:,:]))
 
-        print("Returns: {:.2f} +- {:.2f}".format(np.mean(returns), np.std(returns)))
-        print("Min: {:.2f}, Max: {:.2f}".format(np.min(returns), np.max(returns)))
+        print("Returns: {:.6f} +- {:.6f}".format(np.mean(returns), np.std(returns)))
+        print("Min: {:.6f}, Max: {:.6f}".format(np.min(returns), np.max(returns)))
 
         if scaler == None:
             self.scaler = MinMaxScaler(feature_range=(-1, 1))
@@ -192,12 +188,8 @@ class CryptoDataGetter:
         """ Slicing to get the single tapes (batch_size, time_steps, features)
         If tape contains any return > stab_slope, throw away.     """
         for i in range(0,len(stacked_n)-lookb-lookf):
-            if stab_slope == None: # Dont filter out static distribution
-                x.append(stacked_n[i:i+lookb,:])
-                y.append(stacked_n[i+lookb:i+lookf+lookb,0])
-            elif np.all(stacked_n[i:i+lookb,0] < stab_slope):
-                x.append(stacked_n[i:i+lookb,:])
-                y.append(stacked_n[i+lookb:i+lookf+lookb,0])
+            x.append(stacked_n[i:i+lookb,:])
+            y.append(np.mean(stacked_n[i+lookb:i+lookf+lookb,0]))
 
         return np.asarray(x),  np.asarray(y)
 

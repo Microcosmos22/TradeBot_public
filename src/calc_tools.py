@@ -152,7 +152,6 @@ def compute_features_trim(data, timestamp_ms, nfeatures = 13):
     volume = df[['volume']].values
 
     min_length = close_prices.shape[0]-50 # len(sma_50)#max(min_length - 50, 0)
-    print("min length: {}".format(min_length))
 
     features = np.column_stack([
         sma_20[-min_length:],  # SMA 20
