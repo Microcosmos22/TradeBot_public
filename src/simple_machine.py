@@ -97,6 +97,9 @@ class CryptoMachine:
         self.train_std = np.std(self.logger.train_batch_losses, axis=1)
         self.val_stdfinal = self.calc_val_std(x_val, y_val)
 
+        print("shape")
+        print(self.trainmean.shape)
+
         return self.trainmean, self.train_std, self.valmean, self.val_stdfinal
 
 
@@ -183,39 +186,39 @@ class BatchLossLogger(tf.keras.callbacks.Callback):
 
 if __name__ == "__main__":
 
-    #target_train, target_val, features_train, features_val = load_example_train_val(32200, coin = "BTCUSDT", candle = Client.KLINE_INTERVAL_1HOUR)
-    #x_train, y_train, scaler_fitted = slice_tapes(target_train, features_train, lookf, lookb, steps, stability_slope, None, onlyfirstpoints, indices, nowstr, trainorval = "train")
-    #stability_cut = None#0.5 # 0.05 # where stab_cut * lookb (=100) is the maximal return observed in the train/val/test set
-
     cryptodata = CryptoDataGetter()
-    target, features = cryptodata.get_historical_data_trim(["1 August 2024 00:00:00", 3200], "BTCUSDT", Client.KLINE_INTERVAL_5MINUTE)
+    synth = SyntheticDriver(cryptodata)
+
+    target, features, synth_target, synth_features = cryptodata.get_historical_data_trim(
+    ["1 August 2024 00:00:00", 3200],
+    "BTCUSDT",
+    Client.KLINE_INTERVAL_5MINUTE,
+    transform_func=synth.discrete_MA,
+    transform_strength = 2)
     #cryptodata.plot_candlechart(200)
 
-    synth = SyntheticDriver(cryptodata)
-    synth_target = synth.discrete_MA(3)
-
 
     """ ############################################ """
-    target_train, target_val, features_train, features_val = cryptodata.split_train_val()
+    target_train, target_val, features_train, features_val = cryptodata.split_train_val(target, features)
 
     x_train, y_train, x_val, y_val, scaler = cryptodata.slice_alltapes(lookb = 10, lookf = 5)
 
     simple_machine = CryptoMachine()
     simple_machine.init(candle = "1h", layer1 = 40, layer2 = 15, lookb = 10, lookf = 1, learn_rate = 0.09 , dropout = 0.0)
-    trainmean, train_std, valmean, val_stdfinal = simple_machine.fit(x_train, y_train, x_val, y_val, epochs = 30, batch = 16)
-
-
-    plot = MachinePlotter()
-    plot.plotmachines(trainmean, train_std, valmean, val_stdfinal)
+    trainmean1, train_std1, valmean1, val_stdfinal1 = simple_machine.fit(x_train, y_train, x_val, y_val, epochs = 30, batch = 16)
 
     """ ############################################ """
-    cryptodata.split_train_val(target_total = synth_target, features_total = cryptodata.features_total)
+    target_train, target_val, features_train, features_val = cryptodata.split_train_val(synth_target, synth_features)
 
     x_train, y_train, x_val, y_val, scaler = cryptodata.slice_alltapes(lookb = 10, lookf = 5)
 
     simple_machine = CryptoMachine()
     simple_machine.init(candle = "1h", layer1 = 40, layer2 = 15, lookb = 10, lookf = 1, learn_rate = 0.09 , dropout = 0.0)
-    trainmean, train_std, valmean, val_stdfinal = simple_machine.fit(x_train, y_train, x_val, y_val, epochs = 30, batch = 16)
+    trainmean2, train_std2, valmean2, val_stdfinal2 = simple_machine.fit(x_train, y_train, x_val, y_val, epochs = 30, batch = 16)
 
     plot = MachinePlotter()
-    plot.plotmachines(trainmean, train_std, valmean, val_stdfinal)
+    plot.plotmachines([trainmean1, trainmean2], [train_std1, train_std2], [valmean1, valmean2], [val_stdfinal1, val_stdfinal2])
+
+    print(" Final errors of ")
+    print(" Natural: {} +- {}".format(np.mean(valmean1), val_stdfinal1))
+    print(" Synth:   {} +- {}".format(np.mean(valmean2), val_stdfinal2))

@@ -25,31 +25,47 @@ class MachinePlotter:
 
         plt.style.use('ggplot') #Change/Remove This If you Want
 
-        epochs = len(train_mean)
+        epochs = len(train_mean[0])
 
         # Create 1 row, 2 columns
         fig, axes = plt.subplots(1, 2, figsize=(14, 5), sharex=True, sharey=True)
 
-        # --- Training error plot ---
-        axes[0].plot(np.arange(epochs), train_mean, color='blue', label='Train Error', linewidth=1.0)
+        """ --- Training error plot --- """
+
+        axes[0].plot(np.arange(epochs), train_mean[0], color='blue', label='Train Error', linewidth=1.0)
         axes[0].fill_between(np.arange(epochs),
-                             train_mean - train_std,
-                             train_mean + train_std,
+                             train_mean[0] - train_std[0],
+                             train_mean[0] + train_std[0],
                              color='blue', alpha=0.4)
-        axes[0].errorbar(x=[epochs - 1], y=[train_mean[-1]], yerr=[train_std[-1]],
+        axes[0].errorbar(x=[epochs - 1], y=[train_mean[0][-1]], yerr=[train_std[0][-1]],
             fmt='o', color='blue', ecolor='blue',           # color of error bar
-            elinewidth=1.5, capsize=4, label='Final ±1σ'
-        )
+            elinewidth=1.5, capsize=4, label='Final ±1σ')
+
+        axes[0].plot(np.arange(epochs), train_mean[1], color='cyan', label='Synth Train Error', linewidth=1.0)
+        axes[0].fill_between(np.arange(epochs),
+                             train_mean[1] - train_std[1],
+                             train_mean[1] + train_std[1],
+                             color='cyan', alpha=0.4)
+        axes[0].errorbar(x=[epochs - 1], y=[train_mean[1][-1]], yerr=[train_std[1][-1]],
+            fmt='o', color='cyan', ecolor='cyan',           # color of error bar
+            elinewidth=1.5, capsize=4, label='Final ±1σ')
+
         axes[0].set_title("Training Error")
         axes[0].set_xlabel("Epochs")
         axes[0].set_ylabel("Error")
         axes[0].legend(loc='best')
 
 
-        # --- Validation error plot ---
-        axes[1].plot(np.arange(epochs), val_mean, color='red', label='Validation Error', linewidth=1.0)
-        axes[1].errorbar(x=[epochs - 1], y=[val_mean[-1]], yerr=[val_std],
+        """ --- Validation error plot --- """
+        axes[1].plot(np.arange(epochs), val_mean[0], color='red', label='Validation Error', linewidth=1.0)
+        axes[1].errorbar(x=[epochs - 1], y=[val_mean[0][-1]], yerr=[val_std[0]],
             fmt='o', color='red', ecolor='red',           # color of error bar
+            elinewidth=1.5, capsize=4, label='Final ±1σ'
+        )
+
+        axes[1].plot(np.arange(epochs), val_mean[1], color='orange', label='Synth Validation Error', linewidth=1.0)
+        axes[1].errorbar(x=[epochs - 1], y=[val_mean[1][-1]], yerr=[val_std[1]],
+            fmt='o', color='orange', ecolor='orange',           # color of error bar
             elinewidth=1.5, capsize=4, label='Final ±1σ'
         )
         axes[1].set_title("Validation Error")

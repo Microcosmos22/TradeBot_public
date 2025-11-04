@@ -4,17 +4,25 @@ import matplotlib.pyplot as plt
 class SyntheticDriver:
     def __init__(self, cryptodata):
         self.target, self.features = cryptodata.target_total, cryptodata.features_total
-        self.traded = [0 for k in range(len(self.target))]
-        self.accumulated = [0 for k in range(len(self.target))]
-        self.synth_price = [0 for k in range(len(self.target))]
 
-    def discrete_MA(self, perc):
-        target, features = self.target, self.features
+        self.traded = None
+        """ Accumulated contains the shift in % """
+        self.accumulated = None
+        self.synth_price = None
+
+    def discrete_MA(self, target, features, perc):
+        self.target = target
+        self.features = features
+        self.traded = [0 for k in range(len(target))]
+        """ Accumulated contains the shift in % """
+        self.accumulated = [0 for k in range(len(target))]
+        self.synth_price = [0 for k in range(len(target))]
+
         buys, sells = [0 for k in range(len(target))], [0 for k in range(len(target))]
         shortMA, longMA = features[:, 0], features[:, 1]
         short_prev, long_prev = 0.4, 0.5 # First trade is golden cross
 
-        for i in range(len(self.target)):
+        for i in range(len(self.traded)):
             short_now, long_now = shortMA[i], longMA[i]
 
             if short_prev <= long_prev and short_now > long_now: # Golden cross = BUY
@@ -27,7 +35,8 @@ class SyntheticDriver:
                 short_prev = short_now
                 long_prev = long_now
 
-        return self.shift_prices(perc)
+        self.shift_prices(perc)
+        return self.accumulated
 
     def shift_prices(self, perc):
         for i in range(len(self.traded)):
@@ -36,7 +45,7 @@ class SyntheticDriver:
 
         #plt.plot(self.target)
         #plt.plot(self.synth_price)
-        plt.show()
+        #plt.show()
         return
 
     def continuous_MA(self):
@@ -44,7 +53,6 @@ class SyntheticDriver:
         signal_strength = np.tanh(diff / price)  # normalize, smooth
         target_position = max_position * signal_strength
         return
-
 
 if __name__ == "__main__":
     print("test")

@@ -6,7 +6,6 @@ import os, sys
 import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
 
-
 def calc_returns(target):
     returns = []
     for i in range(len(target)-1):
@@ -214,58 +213,6 @@ def prepare_extended_data(features, target, dates, train_ratio = 0.01, verbose =
     date_test = dates[-split_index:]
 
     return np.asarray(input_train), np.asarray(input_test), np.asarray(output_train), np.asarray(output_test), np.asarray(date_train), np.asarray(date_test)
-
-def slice_tapes(target, features, lookf, lookb, steps, stab_slope, scaler = None, onlyfirstpoints = None, indices = None, nowstr = " ", trainorval = None):
-    """ Prepares the input for the ML model from tha API fetched data. It cuts and slices the
-        data in samples (tapes), and filters out tapes that are not in a stationary distribution"""
-    # Indices is either a numpy.loadtxt containing indices or the running index for machines
-    # that are searching good subsets of data
-
-    if stab_slope != None:
-        stab_slope = float(stab_slope)
-        print("Filter out any tapes containing return > {}% of the max return".format(stab_slope*100))
-
-    returns = calc_returns(target)
-    stacked = np.hstack((returns.reshape(-1,1), features.reshape(-1,12)[1:,:]))
-
-    print("Returns: {} +- {}".format(np.mean(returns), np.std(returns)))
-    print("Min: {}, Max: {}".format(np.min(returns), np.max(returns)))
-
-
-    if scaler == None:
-        scaler = MinMaxScaler(feature_range=(-1, 1))
-        stacked_n = scaler.fit_transform(stacked.reshape(-1,13))
-    else:
-        stacked_n = scaler.transform(stacked.reshape(-1,13))
-
-    stacked_n = stacked_n.reshape(-1,13,1)
-    x, y = [], []
-
-    if isinstance(indices, np.ndarray): # Indices file was passed
-        #random_indices = np.random.choice(len(stacked), size=onlyfirstpoints, replace=False)
-        print(indices.shape)
-        select_indices = indices
-        stacked_n = stacked_n[select_indices]
-    elif isinstance(indices, int):    # Generate subsets from a Running index
-        #select_indices = np.random.choice(len(x), size=onlyfirstpoints, replace=False)
-        select_indices = range(indices*onlyfirstpoints, (indices+1)*onlyfirstpoints)
-        print("Subset from {} to {}".format(select_indices[0], select_indices[-1]))
-        stacked_n = stacked_n[select_indices]
-
-        np.savetxt("../indices/"+str(trainorval)+"_indices"+nowstr+".txt", select_indices, fmt='%d')
-
-    """ Slicing to get the single tapes (batch_size, time_steps, features)
-    If tape contains any return > stab_slope, throw away.     """
-    for i in range(0,len(stacked_n)-lookb-lookf,steps):
-        if stab_slope == None: # Dont filter out static distribution
-            x.append(stacked_n[i:i+lookb,:])
-            y.append(stacked_n[i+lookb:i+lookf+lookb,0])
-        elif np.all(stacked_n[i:i+lookb,0] < stab_slope):
-            x.append(stacked_n[i:i+lookb,:])
-            y.append(stacked_n[i+lookb:i+lookf+lookb,0])
-
-    return np.asarray(x),  np.asarray(y), scaler
-
 
 if __name__ == "__main__":
     np.set_printoptions(precision=2)

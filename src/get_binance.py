@@ -33,7 +33,6 @@ def candle2interval(candle_length):
 
     return interval_duration
 
-
 def k_driver(target0, features, traderpower = 50):
     k = features[:,6]
     target = copy.copy(target0)
@@ -53,6 +52,8 @@ class CryptoDataGetter:
         self.lookf, self.lookb, self.stability_slope, self.val_train_proportion = 0,0,0,0.2
         self.x_train, self.y_train, self.x_val, self.y_val, self.scaler = None, None, None, None, None
         self.target_train, self.target_val, self.features_train, self.features_val = 0,0,0,0
+        self.synth_target, self.synth_features = None, None
+        self.target_total, self.features_total = None, None
 
     def load_simdata(self, sim_N):
         self.target_total = np.load("../target_sim.npy")[:sim_N]
@@ -61,7 +62,7 @@ class CryptoDataGetter:
         #self.dates_total = np.load("../../dates_sim.npy")
         return self.target_total, self.features_total
 
-    def get_historical_data_trim(self, timedef, coin = "BTCUSDT", candle_length = Client.KLINE_INTERVAL_1HOUR):
+    def get_historical_data_trim(self, timedef, coin = "BTCUSDT", candle_length = Client.KLINE_INTERVAL_1HOUR, transform_func=None, transform_strength = 3):
         """ Given a end_of_training datetime and N of candles, returns the past N candles and computes the features/technical indicators.
         Gets all candles and features of a crypto coin for a fixed candle length. There is three options:
         # 1: timedef is an int -> retrieve the last N candles
@@ -128,6 +129,7 @@ class CryptoDataGetter:
                'taker_buy_base_asset_volume', 'taker_buy_quote_asset_volume', 'ignore']
         self.data = pd.DataFrame(data, columns=columns)
         print(data.shape)
+
         """ (time, open, high, low, close, volume, close_time etc.) """
         # Use closing prices
 
@@ -136,7 +138,14 @@ class CryptoDataGetter:
         self.target_total, self.features_total = compute_features_trim(data, self.timestamps)
         #self.dates = np.asarray([datetime.utcfromtimestamp(int(ts)).strftime("%Y-%m-%d %H:%M:%S") for ts in self.timestamps])
 
-        return np.asarray(self.target_total), np.asarray(self.features_total)#, np.asarray(timestamps).astype(np.int64), data
+        if transform_func is not None:
+            return_shift = transform_func(self.target_total, self.features_total, transform_strength)
+            for k in range(1,5):
+                data[:,k] = data[:,k].astype(float) + return_shift[k]/100.0*data[:,k].astype(float)
+
+                self.synth_target, self.synth_features = compute_features_trim(data, self.timestamps)
+
+        return np.asarray(self.target_total), np.asarray(self.features_total), np.asarray(self.synth_target), np.asarray(self.synth_features)
 
     def split_train_val(self, target_total = None, features_total = None):
         if target_total is None:
