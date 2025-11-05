@@ -18,7 +18,7 @@ class FeatureAwareScaler(BaseEstimator, TransformerMixin):
         for col in self.feature_names:
             x = X[col].values
 
-            if col in ['RSI', 'K', 'F']:
+            if col in ['RSI', 'K', 'D']:
                 # 0–100 oscillator → no fitting needed
                 self.params_[col] = {'type': 'oscillator'}
 

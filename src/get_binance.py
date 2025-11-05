@@ -263,6 +263,10 @@ if __name__ == "__main__":
     print(len(cryptodata.stacked[0]))
     col = plot_scaling_stacked(cryptodata.stacked, cryptodata.stacked_n)
 
+    col = ["ret", "sma20", "sma50", "RSI", "BBwidth", "mom", "vol", "K", "D", "MACD", "d_month", "d_week", "h_day"]
+
 
     for i in range(len(cryptodata.stacked[0])):
         print("col: {} min: {} max: {} ".format(col[i], np.min(cryptodata.stacked[:,i]), np.max(cryptodata.stacked[:,i])))
+    for i in range(len(cryptodata.stacked_n[0])):
+        print("col: {} min: {} max: {} ".format(col[i], np.min(cryptodata.stacked_n[:,i]), np.max(cryptodata.stacked_n[:,i])))
