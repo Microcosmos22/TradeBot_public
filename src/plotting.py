@@ -112,7 +112,7 @@ def plot_scaling_stacked(stacked, stacked_n):
 
     """ --- Training error plot --- """
 
-    col = ["ret", "sma20", "sma50", "RSI", "BBwidth", "mom", "vol", "K", "D", "MACD", "month", "week", "day"]
+    col = ["ret", "sma20", "sma50", "RSI", "BBwidth", "mom", "vol", "K", "D", "MACD", "d_month", "d_week", "h_day"]
 
     for i in range(len(stacked[0])): # along features
         axes[0].plot(np.arange(len(stacked[:,0])), stacked[:,i], label=col[i])
