@@ -9,7 +9,7 @@ from sklearn.preprocessing import MinMaxScaler
 def calc_returns(target):
     returns = []
     for i in range(len(target)-1):
-        returns.append((target[i+1]-target[i])/target[i])
+        returns.append((target[i+1]-target[i])/target[i]*100)
     return np.asarray(returns)
 
 def calculate_rsi1(target, period=14):

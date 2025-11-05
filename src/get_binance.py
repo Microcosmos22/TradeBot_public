@@ -54,6 +54,7 @@ class CryptoDataGetter:
         self.target_train, self.target_val, self.features_train, self.features_val = 0,0,0,0
         self.synth_target, self.synth_features = None, None
         self.target_total, self.features_total = None, None
+        self.stacked, self.stacked_n = None, None
 
     def load_simdata(self, sim_N):
         self.target_total = np.load("../target_sim.npy")[:sim_N]
@@ -136,13 +137,16 @@ class CryptoDataGetter:
         self.timestamps = data[:, 0]  # First column contains the timestamp (open time)
         #print(self.timestamps)
         self.target_total, self.features_total = compute_features_trim(data, self.timestamps)
-        #self.dates = np.asarray([datetime.utcfromtimestamp(int(ts)).strftime("%Y-%m-%d %H:%M:%S") for ts in self.timestamps])
+
+        """ self.target_total = np.ones(self.target_total.shape)*70000 """
 
         if transform_func is not None:
             return_shift = transform_func(self.target_total, self.features_total, transform_strength)
+            print(" Return shift has shape: ")
+            print(np.asarray(return_shift).shape)
             for k in range(1,5):
-                data[:,k] = data[:,k].astype(float) + return_shift[k]/100.0*data[:,k].astype(float)
-
+                data[50:,k] = data[50:,k].astype(float) + np.multiply(return_shift,data[50:,k].astype(float)/100)
+                print(" Shift in returns [%] is {:.6f} +- {:.6f} ".format(np.mean(return_shift), np.std(return_shift)))
                 self.synth_target, self.synth_features = compute_features_trim(data, self.timestamps)
 
         return np.asarray(self.target_total), np.asarray(self.features_total), np.asarray(self.synth_target), np.asarray(self.synth_features)
@@ -169,7 +173,7 @@ class CryptoDataGetter:
         self.x_train, self.y_train = self.slice_tapes(self.target_train, self.features_train, self.lookf, self.lookb, self.stability_slope, None, trainorval = "train")
         print("LSTM In- & Out shapes (training): {}, {}".format(self.x_train.shape, self.y_train.shape))
         print()
-        self.x_val, self.y_val= self.slice_tapes(self.target_val, self.features_val, self.lookf, self.lookb, self.stability_slope, self.scaler, trainorval="val")
+        self.x_val, self.y_val = self.slice_tapes(self.target_val, self.features_val, self.lookf, self.lookb, self.stability_slope, self.scaler, trainorval="val")
         print("LSTM In- & Out shapes (validation): {}, {}".format(self.x_val.shape, self.y_val.shape))
         return self.x_train, self.y_train, self.x_val, self.y_val, self.scaler
 
@@ -180,25 +184,25 @@ class CryptoDataGetter:
         # that are searching good subsets of data
 
         returns = calc_returns(target)
-        stacked = np.hstack((returns.reshape(-1,1), features.reshape(-1,12)[1:,:]))
+        self.stacked = np.hstack((returns.reshape(-1,1), features.reshape(-1,12)[1:,:]))
 
-        print("Returns: {:.6f} +- {:.6f}".format(np.mean(returns), np.std(returns)))
+        print("Returns [%]: {:.6f} +- {:.6f}".format(np.mean(returns), np.std(returns)))
         print("Min: {:.6f}, Max: {:.6f}".format(np.min(returns), np.max(returns)))
 
         if scaler == None:
             self.scaler = MinMaxScaler(feature_range=(-1, 1))
-            stacked_n = self.scaler.fit_transform(stacked.reshape(-1,13))
+            self.stacked_n = self.scaler.fit_transform(stacked.reshape(-1,13))
         else:
-            stacked_n = self.scaler.transform(stacked.reshape(-1,13))
+            self.stacked_n = self.scaler.transform(stacked.reshape(-1,13))
 
-        stacked_n = stacked_n.reshape(-1,13,1)
+        self.stacked_n = stacked_n.reshape(-1,13,1)
         x, y = [], []
 
         """ Slicing to get the single tapes (batch_size, time_steps, features)
         If tape contains any return > stab_slope, throw away.     """
-        for i in range(0,len(stacked_n)-lookb-lookf):
-            x.append(stacked_n[i:i+lookb,:])
-            y.append(np.mean(stacked_n[i+lookb:i+lookf+lookb,0]))
+        for i in range(0,len(self.stacked_n)-lookb-lookf):
+            x.append(self.stacked_n[i:i+lookb,:])
+            y.append(np.mean(self.stacked_n[i+lookb:i+lookf+lookb,0]))
 
         return np.asarray(x),  np.asarray(y)
 
