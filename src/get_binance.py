@@ -250,26 +250,19 @@ def load_example_train_val(ncandles=3200, coin = "BTCUSDT", candle=Client.KLINE_
 
 if __name__ == "__main__":
 
+    cryptodata = CryptoDataGetter()
+    target, features, _, _ = cryptodata.get_historical_data_trim(
+    ["1 August 2024 00:00:00", 15000],
+    "BTCUSDT",
+    Client.KLINE_INTERVAL_5MINUTE)
 
-    print("features tr length: {}".format(features_train.shape))
-    print("features val length: {}".format(features_val.shape))
+    target_train, target_val, features_train, features_val = cryptodata.split_train_val(target, features)
 
-    x_train, y_train, scaler_fitted = slice_tapes(target_train, features_train, lookf, lookb, stability_slope, None, onlyfirstpoints, indices, nowstr, trainorval = "train")
-    print("LSTM In- & Out shapes (training): {}, {}".format(x_train.shape, y_train.shape))
-    print()
-    x_val, y_val, scaler = slice_tapes(target_val, features_val, lookf, lookb, stability_slope, scaler_fitted, int(onlyfirstpoints/4), int(indices), nowstr, trainorval="val")
-    print("LSTM In- & Out shapes (validation): {}, {}".format(x_val.shape, y_val.shape))
+    x_train, y_train, x_val, y_val, scaler = cryptodata.slice_alltapes(lookb = 10, lookf = 5)
 
-
-    x_train = x_train.reshape((-1, lookb, 13))
-    x_val = x_val.reshape((-1, lookb, 13))
-
-
-    np.set_printoptions(precision=2)
+    print(len(cryptodata.stacked[0]))
+    col = plot_scaling_stacked(cryptodata.stacked, cryptodata.stacked_n)
 
 
-    start_str = "1 January 2024 00:00:00"
-    end_str = "1 December 2024 00:00:00"
-
-    start_of_training = datetime.strptime(start_str, "%d %B %Y %H:%M:%S")
-    end_of_training = datetime.strptime(end_str, "%d %B %Y %H:%M:%S")
+    for i in range(len(cryptodata.stacked[0])):
+        print("col: {} min: {} max: {} ".format(col[i], np.min(cryptodata.stacked[:,i]), np.max(cryptodata.stacked[:,i])))
