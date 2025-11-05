@@ -16,10 +16,12 @@ import pickle
 import copy
 
 import tensorflow as tf
+from tensorflow.keras.regularizers import l2
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, Dense, Dropout, TimeDistributed
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.callbacks import Callback
+from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
 
 
 def deleteplots(file1, file2, file3):
@@ -57,10 +59,11 @@ class CryptoMachine:
 
         # Define the model
         self.model = Sequential()
-        self.model.add(LSTM(layer1, return_sequences=True, input_shape=(lookb, 13)))
+        self.model.add(LSTM(layer1, return_sequences=True, input_shape=(lookb, 13), kernel_regularizer=l2(1e-4), recurrent_regularizer=l2(1e-4)))
         self.model.add(Dropout(dropout))
 
-        self.model.add(LSTM(layer2, activation="sigmoid", return_sequences=False))
+        self.model.add(LSTM(layer2, activation="sigmoid", return_sequences=False, kernel_regularizer=l2(1e-4), recurrent_regularizer=l2(1e-4)))
+        self.model.add(Dropout(dropout))
         self.model.add(Dense(1, activation="sigmoid"))
 
         optimizer = Adam(learning_rate=float(learn_rate))
@@ -79,6 +82,8 @@ class CryptoMachine:
             save=False, candle=1, nowstr="NOW", plot_curves=True):
         self.epochs = epochs
 
+        es = EarlyStopping(monitor='val_loss', patience=8, restore_best_weights=True)
+        rlr = ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=4, min_lr=1e-6)
         self.logger = BatchLossLogger(validation_data=(x_val, y_val), batch = batch)
 
         self.batch = batch
@@ -87,18 +92,16 @@ class CryptoMachine:
             epochs=epochs,
             batch_size=batch,
             validation_data=(x_val, y_val),
-            callbacks=[self.logger]
+            callbacks=[self.logger],
+            verbose=0
         )
 
         # Save training metrics
-        self.trainmean = np.log(history.history['loss'])
-        self.valmean = np.log(history.history['val_loss'])
+        self.trainmean = np.asarray(history.history['loss'])
+        self.valmean = np.asarray(history.history['val_loss'])
 
         self.train_std = np.std(self.logger.train_batch_losses, axis=1)
         self.val_stdfinal = self.calc_val_std(x_val, y_val)
-
-        print("shape")
-        print(self.trainmean.shape)
 
         return self.trainmean, self.train_std, self.valmean, self.val_stdfinal
 
@@ -190,13 +193,14 @@ if __name__ == "__main__":
     synth = SyntheticDriver(cryptodata)
 
     target, features, synth_target, synth_features = cryptodata.get_historical_data_trim(
-    ["1 August 2024 00:00:00", 3200],
+    ["1 August 2024 00:00:00", 15000],
     "BTCUSDT",
     Client.KLINE_INTERVAL_5MINUTE,
-    transform_func=synth.discrete_RSI,
-    transform_strength = 5)
+    transform_func=synth.linear_RSI,
+    transform_strength = 0.003)
     #cryptodata.plot_candlechart(200)
 
+    epochs = 10
 
     """ ############################################ """
     target_train, target_val, features_train, features_val = cryptodata.split_train_val(target, features)
@@ -204,20 +208,23 @@ if __name__ == "__main__":
     x_train, y_train, x_val, y_val, scaler = cryptodata.slice_alltapes(lookb = 10, lookf = 5)
 
     simple_machine = CryptoMachine()
-    simple_machine.init(candle = "1h", layer1 = 40, layer2 = 15, lookb = 10, lookf = 1, learn_rate = 0.09 , dropout = 0.0)
-    trainmean1, train_std1, valmean1, val_stdfinal1 = simple_machine.fit(x_train, y_train, x_val, y_val, epochs = 30, batch = 16)
+    simple_machine.init(candle = "1h", layer1 = 40, layer2 = 15, lookb = 10, lookf = 1, learn_rate = 0.001 , dropout = 0.1)
+    trainmean1, train_std1, valmean1, val_stdfinal1 = simple_machine.fit(x_train, y_train, x_val, y_val, epochs = epochs, batch = 16)
 
     """ ############################################ """
     target_train, target_val, features_train, features_val = cryptodata.split_train_val(synth_target, synth_features)
 
-    x_train, y_train, x_val, y_val, scaler = cryptodata.slice_alltapes(lookb = 10, lookf = 5)
+    x_trains, y_trains, x_vals, y_vals, scaler = cryptodata.slice_alltapes(lookb = 10, lookf = 5)
 
-    simple_machine = CryptoMachine()
-    simple_machine.init(candle = "1h", layer1 = 40, layer2 = 15, lookb = 10, lookf = 1, learn_rate = 0.09 , dropout = 0.0)
-    trainmean2, train_std2, valmean2, val_stdfinal2 = simple_machine.fit(x_train, y_train, x_val, y_val, epochs = 30, batch = 16)
+    synth_machine = CryptoMachine()
+    synth_machine.init(candle = "1h", layer1 = 40, layer2 = 15, lookb = 10, lookf = 1, learn_rate = 0.001 , dropout = 0.1)
+    trainmean2, train_std2, valmean2, val_stdfinal2 = synth_machine.fit(x_trains, y_trains, x_vals, y_vals, epochs = epochs, batch = 16)
 
-    plot = MachinePlotter()
+    plot = MachinePlotter(simple_machine, synth_machine, x_val, y_val, x_vals, y_vals)
     plot.plotmachines([trainmean1, trainmean2], [train_std1, train_std2], [valmean1, valmean2], [val_stdfinal1, val_stdfinal2])
+
+    plot.plot_tape_eval(x_train, y_train)
+    plot.plot_tape_eval(x_val, y_val)
 
     print(" Final errors of ")
     print(" Natural: {} +- {}".format(np.mean(valmean1), val_stdfinal1))
