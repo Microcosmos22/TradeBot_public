@@ -5,10 +5,14 @@ from sklearn.base import BaseEstimator, TransformerMixin
 class FeatureAwareScaler(BaseEstimator, TransformerMixin):
     """
     Custom scaler that applies feature-specific scaling strategies.
+    Cyclical features are left unchanged for now to preserve column count.
     """
 
     def __init__(self):
-        self.feature_names = ["ret", "sma20", "sma50", "RSI", "BBwidth", "mom", "vol", "K", "D", "MACD", "d_month", "d_week", "h_day"]
+        self.feature_names = [
+            "ret", "sma20", "sma50", "RSI", "BBwidth", "mom",
+            "vol", "K", "D", "MACD", "d_month", "d_week", "h_day"
+        ]
         self.params_ = {}
 
     def fit(self, X, y=None):
@@ -22,10 +26,7 @@ class FeatureAwareScaler(BaseEstimator, TransformerMixin):
                 # 0–100 oscillator → no fitting needed
                 self.params_[col] = {'type': 'oscillator'}
 
-            elif col in ['sma20', 'sma50']: # 0 to inf
-                self.params_[col] = {'mean': x.mean(), 'std': x.std(), 'type': 'zscore'}
-
-            elif col in ['mom', 'MACD', 'BBwidth']: # 0 to inf
+            elif col in ['sma20', 'sma50', 'mom', 'MACD', 'BBwidth']:
                 self.params_[col] = {'mean': x.mean(), 'std': x.std(), 'type': 'zscore'}
 
             elif col == 'vol':
@@ -33,7 +34,8 @@ class FeatureAwareScaler(BaseEstimator, TransformerMixin):
                 self.params_[col] = {'mean': xlog.mean(), 'std': xlog.std(), 'type': 'log_zscore'}
 
             elif col in ['d_month', 'd_week', 'h_day']:
-                self.params_[col] = {'type': 'cyclical'}
+                # Leave cyclical features as-is for now
+                self.params_[col] = {'type': 'unchanged'}
 
             else:
                 self.params_[col] = {'mean': x.mean(), 'std': x.std(), 'type': 'zscore'}
@@ -58,16 +60,8 @@ class FeatureAwareScaler(BaseEstimator, TransformerMixin):
                 xlog = np.log1p(x)
                 X_scaled[col] = (xlog - p['mean']) / (p['std'] + 1e-8)
 
-            elif p['type'] == 'cyclical':
-                if col == 'd_month':
-                    maxv = 31
-                elif col == 'd_week':
-                    maxv = 7
-                else:
-                    maxv = 24
-                X_scaled[f'{col}_sin'] = np.sin(2 * np.pi * x / maxv)
-                X_scaled[f'{col}_cos'] = np.cos(2 * np.pi * x / maxv)
-                continue
+            elif p['type'] == 'unchanged':
+                X_scaled[col] = x  # leave the column as-is
 
         return X_scaled.values
 

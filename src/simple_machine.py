@@ -54,15 +54,15 @@ class CryptoMachine:
         self.error_batch_epoch = None
         self.logger = None
 
-    def init(self, candle, layer1, layer2, lookb, lookf, learn_rate, dropout):
-        self.candle, self.layer1, self.layer2, self.lookb, self.lookf, self.learn_rate, self.dropout = candle, layer1, layer2, lookb, lookf, learn_rate, dropout
+    def init(self, candle, layer1, layer2, lookb, learn_rate, dropout, reg = 1e-3):
+        self.candle, self.layer1, self.layer2, self.lookb, self.learn_rate, self.dropout = candle, layer1, layer2, lookb, learn_rate, dropout
 
         # Define the model
         self.model = Sequential()
-        self.model.add(LSTM(layer1, return_sequences=True, input_shape=(lookb, 13), kernel_regularizer=l2(1e-4), recurrent_regularizer=l2(1e-4)))
+        self.model.add(LSTM(layer1, return_sequences=True, input_shape=(lookb, 13), kernel_regularizer=l2(reg), recurrent_regularizer=l2(reg)))
         self.model.add(Dropout(dropout))
 
-        self.model.add(LSTM(layer2, activation="sigmoid", return_sequences=False, kernel_regularizer=l2(1e-4), recurrent_regularizer=l2(1e-4)))
+        self.model.add(LSTM(layer2, activation="sigmoid", return_sequences=False, kernel_regularizer=l2(reg), recurrent_regularizer=l2(reg)))
         self.model.add(Dropout(dropout))
         self.model.add(Dense(1, activation="sigmoid"))
 
@@ -76,7 +76,6 @@ class CryptoMachine:
         with open(os.path.join("../../scalers", scalerstrn), 'rb') as f:
             scalern = pickle.load(f)
             self.scaler = scalern
-        self.lookf = 1
 
     def fit(self, x_train, y_train, x_val, y_val, epochs, batch,
             save=False, candle=1, nowstr="NOW", plot_curves=True):
@@ -92,7 +91,7 @@ class CryptoMachine:
             epochs=epochs,
             batch_size=batch,
             validation_data=(x_val, y_val),
-            callbacks=[self.logger],
+            callbacks=[rlr, self.logger],
             verbose=0
         )
 
@@ -109,8 +108,8 @@ class CryptoMachine:
     def save_model_scaler(self, scaler):
         # Define file paths
         nowstr = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        self.modelpath = f"../../machines/1H1KTAPES_machine_{nowstr}_f{self.lookf}_b{self.lookb}_l{self.learn_rate}_b{self.batch}_one{self.layer1}_two{self.layer2}_dr{self.dropout}_candle{self.candle}.h5"
-        self.scalerpath = f"../../scalers/1K1KTAPES_scaler_{nowstr}_f{self.lookf}_b{self.lookb}_l{self.learn_rate}_b{self.batch}_one{self.layer1}_two{self.layer2}_dr{self.dropout}_candle{self.candle}.pkl"
+        self.modelpath = f"../../machines/1H1KTAPES_machine_{nowstr}_b{self.lookb}_l{self.learn_rate}_b{self.batch}_one{self.layer1}_two{self.layer2}_dr{self.dropout}_candle{self.candle}.h5"
+        self.scalerpath = f"../../scalers/1K1KTAPES_scaler_{nowstr}_b{self.lookb}_l{self.learn_rate}_b{self.batch}_one{self.layer1}_two{self.layer2}_dr{self.dropout}_candle{self.candle}.pkl"
 
         print(f"saving model {self.modelpath} \n and scaler {self.scalerpath}")
         self.model.save(self.modelpath)
@@ -197,10 +196,10 @@ if __name__ == "__main__":
     "BTCUSDT",
     Client.KLINE_INTERVAL_5MINUTE,
     transform_func=synth.linear_RSI,
-    transform_strength = 0.003)
+    transform_strength = 0.01)
     #cryptodata.plot_candlechart(200)
 
-    epochs = 10
+    epochs = 50
 
     """ ############################################ """
     target_train, target_val, features_train, features_val = cryptodata.split_train_val(target, features)
@@ -208,7 +207,7 @@ if __name__ == "__main__":
     x_train, y_train, x_val, y_val, scaler = cryptodata.slice_alltapes(lookb = 10, lookf = 5)
 
     simple_machine = CryptoMachine()
-    simple_machine.init(candle = "1h", layer1 = 40, layer2 = 15, lookb = 10, lookf = 1, learn_rate = 0.001 , dropout = 0.1)
+    simple_machine.init(candle = "1h", layer1 = 40, layer2 = 15, lookb = 10, lookf = 1, learn_rate = 0.001 , dropout = 0.1, reg = 1e-4)
     trainmean1, train_std1, valmean1, val_stdfinal1 = simple_machine.fit(x_train, y_train, x_val, y_val, epochs = epochs, batch = 16)
 
     """ ############################################ """
@@ -217,7 +216,7 @@ if __name__ == "__main__":
     x_trains, y_trains, x_vals, y_vals, scaler = cryptodata.slice_alltapes(lookb = 10, lookf = 5)
 
     synth_machine = CryptoMachine()
-    synth_machine.init(candle = "1h", layer1 = 40, layer2 = 15, lookb = 10, lookf = 1, learn_rate = 0.001 , dropout = 0.1)
+    synth_machine.init(candle = "1h", layer1 = 40, layer2 = 15, lookb = 10, lookf = 1, learn_rate = 0.001 , dropout = 0.1, reg = 1e-4)
     trainmean2, train_std2, valmean2, val_stdfinal2 = synth_machine.fit(x_trains, y_trains, x_vals, y_vals, epochs = epochs, batch = 16)
 
     plot = MachinePlotter(simple_machine, synth_machine, x_val, y_val, x_vals, y_vals)
