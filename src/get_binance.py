@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 import os, sys
 from calc_tools import *
 from plotting import *
+from scaler import FeatureAwareScaler
 import copy
 import plotly
 import plotly.graph_objects as go
@@ -190,12 +191,11 @@ class CryptoDataGetter:
         print("Min: {:.6f}, Max: {:.6f}".format(np.min(returns), np.max(returns)))
 
         if scaler == None:
-            self.scaler = MinMaxScaler(feature_range=(-1, 1))
+            self.scaler = FeatureAwareScaler()
             self.stacked_n = self.scaler.fit_transform(self.stacked.reshape(-1,13))
         else:
             self.stacked_n = self.scaler.transform(self.stacked.reshape(-1,13))
 
-        self.stacked_n = self.stacked_n.reshape(-1,13,1)
         x, y = [], []
 
         """ Slicing to get the single tapes (batch_size, time_steps, features)
