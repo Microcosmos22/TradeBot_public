@@ -9,17 +9,48 @@ from datetime import datetime, timedelta
 import os, sys
 
 class MachinePlotter:
-    def __init__(self):
+    def __init__(self, model, synthmodel, x_val, y_val, x_vals, y_vals):
         self.blue_colors = [
             "lightblue", "skyblue", "deepskyblue", "dodgerblue",
             "cornflowerblue", "royalblue", "blue", "mediumblue", "navy"
         ]
+        self.model = model
+        self.synthmodel = synthmodel
+        self.x_val, self.y_val, self.x_vals, self.y_vals = x_val, y_val, x_vals, y_vals
 
         self.red_colors = [
             "lightcoral", "salmon", "darksalmon", "tomato",
             "red", "firebrick", "darkred", "indianred", "crimson"
         ]
         return
+
+    def plot_tape_eval(self, x, y):
+        idx = np.random.choice(np.arange(len(x)))
+
+
+        y_pred = self.model.model.predict(x[idx].reshape(1, 10, 13), verbose=0)
+
+        fig, axes = plt.subplots(1, 2, figsize=(10, 8))
+        x_target = x[idx,:,0]
+
+        # Top-left
+        axes[0].plot(np.arange(10), x_target, color='blue')
+        axes[0].set_title("Target. X")
+
+        # Top-right
+        axes[1].scatter(1, y_pred, label="y_pred", color='cyan')
+        axes[1].scatter(1, y[idx], label="y_true", color='blue')
+        axes[1].legend()
+        axes[1].set_title("Target. Y")
+
+        #axes[1, 1].plot(np.arange(len(self.x_val[idx,:,:])), self.x_val[idx,:,:], color='blue')
+        #axes[1, 1].set_title("Features. X")
+
+
+        # Adjust layout and show
+        plt.tight_layout()
+        plt.show()
+
 
     def plotmachines(self, train_mean, train_std, val_mean, val_std):
 
