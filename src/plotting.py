@@ -51,7 +51,6 @@ class MachinePlotter:
         plt.tight_layout()
         plt.show()
 
-
     def plotmachines(self, train_mean, train_std, val_mean, val_std):
 
         plt.style.use('ggplot') #Change/Remove This If you Want
@@ -107,6 +106,23 @@ class MachinePlotter:
         plt.show()
 
         print("Saved training curves")
+
+def plot_scaling_stacked(stacked, stacked_n):
+    fig, axes = plt.subplots(1, 2, figsize=(14, 5), sharex=True, sharey=False)
+
+    """ --- Training error plot --- """
+
+    col = ["ret", "sma20", "sma50", "RSI", "BBwidth", "mom", "vol", "K", "D", "MACD", "d_month", "d_week", "h_day"]
+
+    for i in range(len(stacked[0])): # along features
+        axes[0].plot(np.arange(len(stacked[:,0])), stacked[:,i], label=col[i])
+        axes[1].plot(np.arange(len(stacked_n[:,0])), stacked_n[:,i], label=col[i])
+
+    plt.tight_layout()
+    plt.legend()
+    plt.show()
+    return col
+
 
 def plot_test_train_predictions_grid(trues_test, preds_test, tres_train, preds_train, identifier):
     # Create a 4x5 grid of subplots

@@ -106,8 +106,22 @@ def extract_times(timestamp_ms):
         dweek.append(dt_utc.weekday())  # Full weekday name (e.g., 'Monday')
         hour.append(dt_utc.hour)
 
+        """ encode_time_cyclically(dmonth, dweek, hour) """
+        # Day of month (1–31)
+        dmonth_sin = np.sin(2 * np.pi * dmonth / 31)
+        dmonth_cos = np.cos(2 * np.pi * dmonth / 31)
 
-    return np.asarray(dmonth), np.asarray(dweek), np.asarray(hour)
+        # Day of week (0–6)
+        dweek_sin = np.sin(2 * np.pi * dweek / 7)
+        dweek_cos = np.cos(2 * np.pi * dweek / 7)
+
+        # Hour of day (0–23)
+        hour_sin = np.sin(2 * np.pi * hour / 24)
+        hour_cos = np.cos(2 * np.pi * hour / 24)
+
+        return np.column_stack([dmonth_sin, dmonth_cos,
+                                dweek_sin, dweek_cos,
+                                hour_sin, hour_cos])
 
 def compute_features_trim(data, timestamp_ms, nfeatures = 13):
     # Compute features of the target (which is usually closing_prices)
@@ -130,7 +144,7 @@ def compute_features_trim(data, timestamp_ms, nfeatures = 13):
     sma_50 = close_prices.rolling(window=50).mean()
     k, d = calculate_stochastic_oscillator(df_for_so)
     macddiff = calculate_macd_histogram(df_for_macd)
-    dmonth, dweek, hour = extract_times(timestamp_ms)
+    #dmonth, dweek, hour = extract_times(timestamp_ms)
 
 
     # sma's start at 50
@@ -162,10 +176,13 @@ def compute_features_trim(data, timestamp_ms, nfeatures = 13):
         k[-min_length:],       # Stochastic %K
         d[-min_length:],       # Stochastic %D
         macddiff[-min_length:],# MACD difference
-        dmonth[-min_length:],  # Day of the month
-        dweek[-min_length:],   # Day of the week
-        hour[-min_length:]     # Hour of the day
+        np.zeros(np.asarray(k[-min_length:]).shape),    # day of month
+        np.zeros(np.asarray(k[-min_length:]).shape),    # day of week
+        np.zeros(np.asarray(k[-min_length:]).shape)     # Hour of the day
     ]).astype(float)
+
+    """ DATES FEATURES ARE PLACEHOLDERS.
+     NEED 6 FEATURES FOR CYCLICAL DATES  """
 
     target = close_prices[-min_length:].to_numpy()
     if np.any(np.isnan(features)):

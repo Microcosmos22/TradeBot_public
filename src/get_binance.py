@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 import os, sys
 from calc_tools import *
 from plotting import *
+from scaler import FeatureAwareScaler
 import copy
 import plotly
 import plotly.graph_objects as go
@@ -190,12 +191,11 @@ class CryptoDataGetter:
         print("Min: {:.6f}, Max: {:.6f}".format(np.min(returns), np.max(returns)))
 
         if scaler == None:
-            self.scaler = MinMaxScaler(feature_range=(-1, 1))
+            self.scaler = FeatureAwareScaler()
             self.stacked_n = self.scaler.fit_transform(self.stacked.reshape(-1,13))
         else:
             self.stacked_n = self.scaler.transform(self.stacked.reshape(-1,13))
 
-        self.stacked_n = self.stacked_n.reshape(-1,13,1)
         x, y = [], []
 
         """ Slicing to get the single tapes (batch_size, time_steps, features)
@@ -250,26 +250,23 @@ def load_example_train_val(ncandles=3200, coin = "BTCUSDT", candle=Client.KLINE_
 
 if __name__ == "__main__":
 
+    cryptodata = CryptoDataGetter()
+    target, features, _, _ = cryptodata.get_historical_data_trim(
+    ["1 August 2024 00:00:00", 15000],
+    "BTCUSDT",
+    Client.KLINE_INTERVAL_5MINUTE)
 
-    print("features tr length: {}".format(features_train.shape))
-    print("features val length: {}".format(features_val.shape))
+    target_train, target_val, features_train, features_val = cryptodata.split_train_val(target, features)
 
-    x_train, y_train, scaler_fitted = slice_tapes(target_train, features_train, lookf, lookb, stability_slope, None, onlyfirstpoints, indices, nowstr, trainorval = "train")
-    print("LSTM In- & Out shapes (training): {}, {}".format(x_train.shape, y_train.shape))
-    print()
-    x_val, y_val, scaler = slice_tapes(target_val, features_val, lookf, lookb, stability_slope, scaler_fitted, int(onlyfirstpoints/4), int(indices), nowstr, trainorval="val")
-    print("LSTM In- & Out shapes (validation): {}, {}".format(x_val.shape, y_val.shape))
+    x_train, y_train, x_val, y_val, scaler = cryptodata.slice_alltapes(lookb = 10, lookf = 5)
 
+    print(len(cryptodata.stacked[0]))
+    col = plot_scaling_stacked(cryptodata.stacked, cryptodata.stacked_n)
 
-    x_train = x_train.reshape((-1, lookb, 13))
-    x_val = x_val.reshape((-1, lookb, 13))
-
-
-    np.set_printoptions(precision=2)
+    col = ["ret", "sma20", "sma50", "RSI", "BBwidth", "mom", "vol", "K", "D", "MACD", "d_month", "d_week", "h_day"]
 
 
-    start_str = "1 January 2024 00:00:00"
-    end_str = "1 December 2024 00:00:00"
-
-    start_of_training = datetime.strptime(start_str, "%d %B %Y %H:%M:%S")
-    end_of_training = datetime.strptime(end_str, "%d %B %Y %H:%M:%S")
+    for i in range(len(cryptodata.stacked[0])):
+        print("col: {} min: {} max: {} ".format(col[i], np.min(cryptodata.stacked[:,i]), np.max(cryptodata.stacked[:,i])))
+    for i in range(len(cryptodata.stacked_n[0])):
+        print("col: {} min: {} max: {} ".format(col[i], np.min(cryptodata.stacked_n[:,i]), np.max(cryptodata.stacked_n[:,i])))
