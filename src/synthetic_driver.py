@@ -11,6 +11,10 @@ class SyntheticDriver:
         self.synth_price = None
 
     def discrete_MA(self, target, features, perc):
+        """ When short MA crosses above long MA, the bot buys self.traded[i] = perc
+        where perc is given in percentage of the price, thus the price shift
+        that it will cause. This is then accumulated and stored into a synthetic price chart"""
+
         self.target = target
         self.features = features
         self.traded = [0 for k in range(len(target))]
@@ -18,7 +22,6 @@ class SyntheticDriver:
         self.accumulated = [0 for k in range(len(target))]
         self.synth_price = [0 for k in range(len(target))]
 
-        buys, sells = [0 for k in range(len(target))], [0 for k in range(len(target))]
         shortMA, longMA = features[:, 0], features[:, 1]
         short_prev, long_prev = 0.4, 0.5 # First trade is golden cross
 
@@ -38,14 +41,86 @@ class SyntheticDriver:
         self.shift_prices(perc)
         return self.accumulated
 
+    def discrete_RSI(self, target, features, perc):
+        """ When RSI < 30 (or > 70 for sell), the bot buys self.traded[i] = perc
+        where perc is given in percentage of the price, thus the price shift
+        that it will cause. This is then accumulated and stored into a synthetic price chart"""
+
+        self.target = target
+        self.features = features
+        self.traded = [0 for k in range(len(target))]
+        """ Accumulated contains the shift in % """
+        self.accumulated = [0 for k in range(len(target))]
+        self.synth_price = [0 for k in range(len(target))]
+
+        RSI = features[:,2]
+        bought = False
+
+        for i in range(len(self.traded)):
+            if RSI[i] > 70 and not bought:
+                self.traded[i] = perc
+                bought = True
+            if RSI[i] < 30 and bought:
+                self.traded[i] = -perc
+                bought = False
+
+        self.shift_prices(perc)
+        return self.accumulated
+
+    def continuous_RSI(self, target, features, perc):
+        """ When RSI < 30 (or > 70 for sell), the bot buys every candle,
+        proportionately to the distance above 70 or sells below 30.
+        This is then accumulated and stored into a synthetic price chart"""
+
+        self.target = target
+        self.features = features
+        self.traded = [0 for k in range(len(target))]
+        """ Accumulated contains the shift in % """
+        self.accumulated = [0 for k in range(len(target))]
+        self.synth_price = [0 for k in range(len(target))]
+
+        RSI = features[:,2]
+        bought = False
+
+        for i in range(len(self.traded)):
+            if RSI[i] > 70:
+                self.traded[i] = (RSI[i]-70)/30*perc
+                bought = True
+            if RSI[i] < 30:
+                self.traded[i] = (RSI[i]-30)/30*perc
+                bought = False
+
+        self.shift_prices(perc)
+        return self.accumulated
+
+    def linear_RSI(self, target, features, perc):
+        """ When RSI != 50, the bot buys or sells just linearly depending on RSI-50
+        This is then accumulated and stored into a synthetic price chart"""
+
+        self.target = target
+        self.features = features
+        self.traded = [0 for k in range(len(target))]
+        """ Accumulated contains the shift in % """
+        self.accumulated = [0 for k in range(len(target))]
+        self.synth_price = [0 for k in range(len(target))]
+
+        RSI = features[:,2]
+        bought = False
+
+        for i in range(len(self.traded)):
+            self.traded[i] = (RSI[i]-50)/50*perc
+
+        self.shift_prices(perc)
+        return self.accumulated
+
     def shift_prices(self, perc):
         for i in range(len(self.traded)):
             self.accumulated[i] = -perc/2+float(np.sum(self.traded[:i])) # Accumulated price shift in %
             self.synth_price[i] = float(self.target[i] + self.accumulated[i]/100*self.target[i])
 
-        #plt.plot(self.target)
-        #plt.plot(self.synth_price)
-        #plt.show()
+        plt.plot(self.target, label = " Orig. BTCUSD")
+        plt.plot(self.synth_price, label = " Synth BTCUSDT")
+        plt.show()
         return
 
     def continuous_MA(self):

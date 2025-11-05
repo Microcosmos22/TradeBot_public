@@ -193,8 +193,8 @@ if __name__ == "__main__":
     ["1 August 2024 00:00:00", 3200],
     "BTCUSDT",
     Client.KLINE_INTERVAL_5MINUTE,
-    transform_func=synth.discrete_MA,
-    transform_strength = 2)
+    transform_func=synth.discrete_RSI,
+    transform_strength = 5)
     #cryptodata.plot_candlechart(200)
 
 
