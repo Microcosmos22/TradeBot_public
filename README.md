@@ -1,29 +1,28 @@
-# Hello Multiverse recruiter!
-I applied yesterday for the pre-sales position, and wanted to polish this projects presentation/collaborability but I am having a bad day.
+# TradeBot — Learning Market Dynamics from Synthetic Correlations
+Simulating trading behavior and training neural networks on synthetic financial data.
 
-If you give me two days I will make an installable library, including:
-- requirements.txt for automatic installation in an env.
-- Documentation of the library with Sphinx.
-- A easy to reproduce demo from dataset acquisition, LSTM training, and live trading simulation.
+This project shows that a neural network can learn meaningful market patterns
+that stem from commonly used pre-programmed bots on the real market.
+It also permits using this network in an own, real-time trading bot,
+and includes different tools for getting, analyzing and pre-processing data.
+It is meant to make this whole process more easy!
 
-Have a good day!
-________________________________________________________________________________
+The main result states:
 
-## Goal
-Main goal is to develop a GUI so that the user can easily:
+## 🧠 Project Overview
 
-- Call training data from the Binance API, preprocess it.
-- Select a LSTM architecture and explore the hyperparameters through grid searching.
-- Select the best machines judging by the training curves.
-- Perform profit simulations on real, past Data or live.
-- As well as simulating correlations on the real data to find out if the LSTM can capture them.
+1. Load historical BTCUSDT data  
+2. Compute technical indicators and prepare model inputs  
+3. Diagnose data distributions and correlations  
+4. Generate synthetic market data with controlled structure  
+5. Train neural network on real vs synthetic data  
+6. Simulate a trading bot using trained model  
 
-## Progress
-Managed to overfit the training data. As you can see he predicts the training data perfectly, while not having generalized to validation data.
-x-axis represents time, y-axis is the returns (price change in %).
-![Alt text](./overfit.png)
+First install with: 
 
-A profit (y) simulation of 3 different machines on real data (last 3000 hours in x-axis). Obtained constant profit slopes instead of a random walk, which is a good sign.
-![Alt text](./profit_3machines.png)
+pip install tradebot
 
-Much more to come...
+
+
+
+
