@@ -1,13 +1,22 @@
 # TradeBot — Learning Market Dynamics from Synthetic Correlations
-Simulating trading behavior and training neural networks on synthetic financial data.
+Simulate common trading bots on real crypto data and prove that a neural networks is able to capture the pattern!
 
-This project shows that a neural network can learn meaningful market patterns
+This project proves that a neural network can learn meaningful market patterns
 that stem from commonly used pre-programmed bots on the real market.
-It also permits using this network in an own, real-time trading bot,
+It also permits its implementation in a real-time trading bot,
 and includes different tools for getting, analyzing and pre-processing data.
 It is meant to make this whole process more easy!
 
-The main result states:
+## First install with: 
+
+pip install tradebot
+
+## Example code:
+
+For a more detailed tutorial that goes through all functions of this library,
+i uploaded a Kaggle notebook, showing the capture of a real-time trading bot:
+
+
 
 ## 🧠 Project Overview
 
@@ -18,9 +27,7 @@ The main result states:
 5. Train neural network on real vs synthetic data  
 6. Simulate a trading bot using trained model  
 
-First install with: 
 
-pip install tradebot
 
 
 
