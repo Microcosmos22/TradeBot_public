@@ -108,10 +108,14 @@ class SyntheticDriver:
         bought = False
 
         for i in range(len(self.traded)):
-            self.traded[i] = (RSI[i]-50)/50*perc
+            self.traded[i] = (RSI[i]-50)/50*perc + 1
+            self.synth_price[i] = self.target[i]*self.traded[i]
 
-        self.shift_prices(perc)
-        return self.accumulated
+        plt.plot(self.target, label = " Orig. BTCUSD")
+        plt.plot(self.synth_price, label = " Synth BTCUSDT")
+        plt.show()
+
+        return self.traded
 
     def shift_prices(self, perc):
         for i in range(len(self.traded)):

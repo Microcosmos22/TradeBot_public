@@ -196,8 +196,10 @@ if __name__ == "__main__":
     "BTCUSDT",
     Client.KLINE_INTERVAL_5MINUTE,
     transform_func=synth.linear_RSI,
-    transform_strength = 0.01)
+    transform_strength = 0.03)
     #cryptodata.plot_candlechart(200)
+
+    plot_returns_histo(target, synth_target)
 
     epochs = 50
 
@@ -207,7 +209,7 @@ if __name__ == "__main__":
     x_train, y_train, x_val, y_val, scaler = cryptodata.slice_alltapes(lookb = 10, lookf = 5)
 
     simple_machine = CryptoMachine()
-    simple_machine.init(candle = "1h", layer1 = 40, layer2 = 15, lookb = 10, lookf = 1, learn_rate = 0.001 , dropout = 0.1, reg = 1e-4)
+    simple_machine.init(candle = "1h", layer1 = 40, layer2 = 15, lookb = 10, learn_rate = 0.03 , dropout = 0.0, reg = 1e-4)
     trainmean1, train_std1, valmean1, val_stdfinal1 = simple_machine.fit(x_train, y_train, x_val, y_val, epochs = epochs, batch = 16)
 
     """ ############################################ """
@@ -216,7 +218,7 @@ if __name__ == "__main__":
     x_trains, y_trains, x_vals, y_vals, scaler = cryptodata.slice_alltapes(lookb = 10, lookf = 5)
 
     synth_machine = CryptoMachine()
-    synth_machine.init(candle = "1h", layer1 = 40, layer2 = 15, lookb = 10, lookf = 1, learn_rate = 0.001 , dropout = 0.1, reg = 1e-4)
+    synth_machine.init(candle = "1h", layer1 = 40, layer2 = 15, lookb = 10, learn_rate = 0.03 , dropout = 0.0, reg = 1e-4)
     trainmean2, train_std2, valmean2, val_stdfinal2 = synth_machine.fit(x_trains, y_trains, x_vals, y_vals, epochs = epochs, batch = 16)
 
     plot = MachinePlotter(simple_machine, synth_machine, x_val, y_val, x_vals, y_vals)

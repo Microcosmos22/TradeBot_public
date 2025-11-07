@@ -205,6 +205,12 @@ def plot_after_split(y_test, par_test):
     plt.show()
     return None
 
+def plot_returns_histo(target, synth_target):
+    pyplot.hist(target, 50, alpha=0.5, label='Original returns')
+    pyplot.hist(synth_target, 50, alpha=0.5, label='Synth returns')
+    pyplot.legend(loc='upper right')
+    pyplot.show()
+
 
 def plot_future_results(y_pred, y_test, date_test):
     # Plot results

@@ -139,16 +139,21 @@ class CryptoDataGetter:
         #print(self.timestamps)
         self.target_total, self.features_total = compute_features_trim(data, self.timestamps)
 
+        #self.synth_target = np.multiply(self.target_total, return_shift)
         """ self.target_total = np.ones(self.target_total.shape)*70000 """
 
         if transform_func is not None:
             return_shift = transform_func(self.target_total, self.features_total, transform_strength)
-            print(" Return shift has shape: ")
-            print(np.asarray(return_shift).shape)
+
             for k in range(1,5):
-                data[50:,k] = data[50:,k].astype(float) + np.multiply(return_shift,data[50:,k].astype(float)/100)
-                print(" Shift in returns [%] is {:.6f} +- {:.6f} ".format(np.mean(return_shift), np.std(return_shift)))
-                self.synth_target, self.synth_features = compute_features_trim(data, self.timestamps)
+                data[50:,k] = np.multiply(data[50:,k].astype(float), return_shift)
+
+            print(" Shift in returns [%] is {:.6f} +- {:.6f} ".format(np.mean(return_shift), np.std(return_shift)))
+            # This for without recomputing synth features
+            #self.synth_features = self.features_total
+            #self.synth_target = np.multiply(self.target_total, return_shift)
+            # This is for re-computing the synth features after trader
+            self.synth_target, self.synth_features = compute_features_trim(data, self.timestamps)
 
         return np.asarray(self.target_total), np.asarray(self.features_total), np.asarray(self.synth_target), np.asarray(self.synth_features)
 
