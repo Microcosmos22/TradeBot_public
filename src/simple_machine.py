@@ -10,6 +10,7 @@ from calc_tools import *
 from get_binance import *
 from plotting import *
 from synthetic_driver import *
+from simulation import *
 import pandas as pd
 import scipy.signal as signal
 import pickle
@@ -17,7 +18,7 @@ import copy
 
 import tensorflow as tf
 from tensorflow.keras.regularizers import l2
-from tensorflow.keras.models import Sequential
+from tensorflow.keras.models import Sequential, load_model
 from tensorflow.keras.layers import LSTM, Dense, Dropout, TimeDistributed
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.callbacks import Callback
@@ -70,6 +71,9 @@ class CryptoMachine:
         self.model.compile(loss='mean_squared_error', optimizer=optimizer, metrics=['mae', 'mse'])
         self.model.summary()
 
+    def set_scaler(self, scaler):
+        self.scaler = scaler
+
     def load_machine(self, machinestrn, scalerstrn):
 
         self.model = load_model(os.path.join("../../machines", machinestrn))
@@ -104,18 +108,17 @@ class CryptoMachine:
 
         return self.trainmean, self.train_std, self.valmean, self.val_stdfinal
 
-
-    def save_model_scaler(self, scaler):
+    def save_model_scaler(self, strn):
         # Define file paths
         nowstr = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        self.modelpath = f"../../machines/1H1KTAPES_machine_{nowstr}_b{self.lookb}_l{self.learn_rate}_b{self.batch}_one{self.layer1}_two{self.layer2}_dr{self.dropout}_candle{self.candle}.h5"
-        self.scalerpath = f"../../scalers/1K1KTAPES_scaler_{nowstr}_b{self.lookb}_l{self.learn_rate}_b{self.batch}_one{self.layer1}_two{self.layer2}_dr{self.dropout}_candle{self.candle}.pkl"
+        self.modelpath = f"../../machines/"+strn+"_machine_{nowstr}_b{self.lookb}_l{self.learn_rate}_b{self.batch}_one{self.layer1}_two{self.layer2}_dr{self.dropout}_candle{self.candle}.h5"
+        self.scalerpath = f"../../scalers/"+strn+"_scaler_{nowstr}_b{self.lookb}_l{self.learn_rate}_b{self.batch}_one{self.layer1}_two{self.layer2}_dr{self.dropout}_candle{self.candle}.pkl"
 
         print(f"saving model {self.modelpath} \n and scaler {self.scalerpath}")
         self.model.save(self.modelpath)
-        if scaler is not None:
+        if self.scaler is not None:
             with open(self.scalerpath, 'wb') as f:
-                pickle.dump(scaler, f)
+                pickle.dump(self.scaler, f)
 
     def raws_predict(self, target, features):
         """ Makes the LAST tape of the given target, features (uses internal lookb/f)
@@ -192,41 +195,49 @@ if __name__ == "__main__":
     synth = SyntheticDriver(cryptodata)
 
     target, features, synth_target, synth_features = cryptodata.get_historical_data_trim(
-    ["1 August 2024 00:00:00", 15000],
-    "BTCUSDT",
-    Client.KLINE_INTERVAL_5MINUTE,
-    transform_func=synth.linear_RSI,
-    transform_strength = 0.03)
-    #cryptodata.plot_candlechart(200)
+    ["1 August 2024 00:00:00", 15000], "BTCUSDT", Client.KLINE_INTERVAL_5MINUTE,
+    transform_func=synth.linear_RSI, transform_strength = 0.02)
 
-    plot_returns_histo(target, synth_target)
+    """ Plotting some info on the data """
+    #cryptodata.plot_candlechart(200)
+    #plot_returns_histo(target, synth_target)
+    plot_correlation(calc_returns(target), calc_returns(target), "Autocorr. returns")
+    plot_correlation(calc_returns(synth_target), calc_returns(synth_target), "Autocorr. synth returns")
+    plot_correlation(np.subtract(features[1:,3],50), np.subtract(features[1:,3],50), " Auto corr. RSI ")
+    plot_correlation(np.subtract(features[1:,3],50), calc_returns(target), " Cross-corr RSI-returns ")
+    plot_correlation(np.subtract(features[1:,3],50), calc_returns(synth_target), " Cross-corr RSI-synth returns ")
+
 
     epochs = 50
 
-    """ ############################################ """
+    """ ###################### --- ###################### """
     target_train, target_val, features_train, features_val = cryptodata.split_train_val(target, features)
+    x_train, y_train, x_val, y_val, scaler = cryptodata.slice_alltapes_normalize(lookb = 10, lookf = 5)
 
-    x_train, y_train, x_val, y_val, scaler = cryptodata.slice_alltapes(lookb = 10, lookf = 5)
-
+    plot_tape(x_train[0])
     simple_machine = CryptoMachine()
-    simple_machine.init(candle = "1h", layer1 = 40, layer2 = 15, lookb = 10, learn_rate = 0.03 , dropout = 0.0, reg = 1e-4)
+    simple_machine.init(candle = "1h", layer1 = 40, layer2 = 15, lookb = 10, learn_rate = 0.03 , dropout = 0.1, reg = 1e-4)
     trainmean1, train_std1, valmean1, val_stdfinal1 = simple_machine.fit(x_train, y_train, x_val, y_val, epochs = epochs, batch = 16)
 
-    """ ############################################ """
+    simple_machine.set_scaler(scaler)
+    simple_machine.save_model_scaler("simplemachine")
+    """ ###################### --- ###################### """
     target_train, target_val, features_train, features_val = cryptodata.split_train_val(synth_target, synth_features)
-
-    x_trains, y_trains, x_vals, y_vals, scaler = cryptodata.slice_alltapes(lookb = 10, lookf = 5)
+    x_trains, y_trains, x_vals, y_vals, scaler = cryptodata.slice_alltapes_normalize(lookb = 10, lookf = 5)
 
     synth_machine = CryptoMachine()
-    synth_machine.init(candle = "1h", layer1 = 40, layer2 = 15, lookb = 10, learn_rate = 0.03 , dropout = 0.0, reg = 1e-4)
+    synth_machine.init(candle = "1h", layer1 = 40, layer2 = 15, lookb = 10, learn_rate = 0.03 , dropout = 0.1, reg = 1e-4)
     trainmean2, train_std2, valmean2, val_stdfinal2 = synth_machine.fit(x_trains, y_trains, x_vals, y_vals, epochs = epochs, batch = 16)
 
+    synth_machine.set_scaler(scaler)
+    synth_machine.save_model_scaler("synthmachine")
+    """ ###################### --- ###################### """
     plot = MachinePlotter(simple_machine, synth_machine, x_val, y_val, x_vals, y_vals)
-    plot.plotmachines([trainmean1, trainmean2], [train_std1, train_std2], [valmean1, valmean2], [val_stdfinal1, val_stdfinal2])
-
-    plot.plot_tape_eval(x_train, y_train)
+    plot.plotmachine([trainmean2], [train_std2], [valmean2], [val_stdfinal2])
     plot.plot_tape_eval(x_val, y_val)
 
-    print(" Final errors of ")
-    print(" Natural: {} +- {}".format(np.mean(valmean1), val_stdfinal1))
-    print(" Synth:   {} +- {}".format(np.mean(valmean2), val_stdfinal2))
+    print(" Final prediction errors on the validation of each series. ")
+    print(" Original: {:.4f} +- {:.4f}".format(np.mean(valmean1), val_stdfinal1))
+    print(" Synth:   {:.4f} +- {:.4f}".format(np.mean(valmean2), val_stdfinal2))
+
+    """ ############# PROFIT SIMULATION ############## """
