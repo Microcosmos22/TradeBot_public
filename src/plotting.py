@@ -55,7 +55,7 @@ class MachinePlotter:
         epochs = len(train_mean[0])
 
         # Create 1 row, 2 columns
-        fig, axes = plt.subplots(2, 2, figsize=(14, 5), sharex=True, sharey=True)
+        fig, axes = plt.subplots(2, 2, figsize=(14, 5), sharex=True, sharey=False)
 
         """ --- Training error plot --- """
 
@@ -114,8 +114,8 @@ class MachinePlotter:
 
         axes[0].plot(np.arange(epochs), train_mean, color='blue', label='Train Error', linewidth=1.0)
         axes[0].fill_between(np.arange(epochs),
-                             train_mean - train_std,
-                             train_mean + train_std,
+                             np.subtract(train_mean,train_std),
+                             np.add(train_mean,train_std),
                              color='blue', alpha=0.4)
         axes[0].errorbar(x=[epochs - 1], y=[train_mean[-1]], yerr=[train_std[-1]],
             fmt='o', color='blue', ecolor='blue',           # color of error bar
@@ -139,6 +139,25 @@ class MachinePlotter:
         plt.show()
 
         print("Saved training curves")
+
+    def plot_tape(x):
+
+        plt.plot(x[:,0], label="Returns")
+        plt.plot(x[:,1], label="SMA_20")
+        plt.plot(x[:,2], label="SMA_50")
+        plt.plot(x[:,3], label="RSI")
+        plt.plot(x[:,4], label="BB_w")
+        plt.plot(x[:,5], label="momentum")
+        plt.plot(x[:,6], label="vol")
+        plt.plot(x[:,7], label="k")
+        plt.plot(x[:,8], label="d")
+        plt.plot(x[:,9], label="macddiff")
+        plt.plot(x[:,10], label="dmonth")
+        plt.plot(x[:,11], label="dweek")
+        plt.plot(x[:,12], label="hday")
+        plt.legend()
+        plt.title(" Input X (normalized)")
+        plt.show()
 
 def plot_scaling_stacked(stacked, stacked_n):
     fig, axes = plt.subplots(1, 2, figsize=(14, 5), sharex=True, sharey=False)
@@ -203,25 +222,6 @@ def plot_test_predictions_grid(trues, preds):
     plt.savefig("constant_predictions.png")
 
     # Show the plots
-    plt.show()
-
-def plot_tape(x):
-
-    plt.plot(x[:,0], label="Returns")
-    plt.plot(x[:,1], label="SMA_20")
-    plt.plot(x[:,2], label="SMA_50")
-    plt.plot(x[:,3], label="RSI")
-    plt.plot(x[:,4], label="BB_w")
-    plt.plot(x[:,5], label="momentum")
-    plt.plot(x[:,6], label="vol")
-    plt.plot(x[:,7], label="k")
-    plt.plot(x[:,8], label="d")
-    plt.plot(x[:,9], label="macddiff")
-    plt.plot(x[:,10], label="dmonth")
-    plt.plot(x[:,11], label="dweek")
-    plt.plot(x[:,12], label="hday")
-    plt.legend()
-    plt.title(" Input X (normalized)")
     plt.show()
 
 def plot_after_split(y_test, par_test):

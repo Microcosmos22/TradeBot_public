@@ -142,10 +142,17 @@ class CryptoDataGetter:
         if transform_func is not None:
             return_shift = transform_func(self.target_total, self.features_total, transform_strength)
 
+            returns = calc_returns(data[:,1].astype(float))
+            print(" Original Returns [%]: {:.6f} +- {:.6f}".format(np.mean(returns), np.std(returns)))
+
             for k in range(1,5):
                 data[50:,k] = np.multiply(data[50:,k].astype(float), return_shift)
 
-            print(" Trader shifts returns [%] {:.6f} +- {:.6f} ".format(np.mean(return_shift), np.std(return_shift)))
+            #print(" Average trader return impact [%] {:.6f} +- {:.6f} ".format(100-(np.mean(return_shift)*100), np.std(return_shift)*100))
+            returns = calc_returns(data[:,1].astype(float))
+            print(" Synth. returns after trader [%]: {:.6f} +- {:.6f}".format(np.mean(returns), np.std(returns)))
+
+
             # This for without recomputing synth features
             self.synth_features = self.features_total
             self.synth_target = np.multiply(self.target_total, return_shift)
@@ -197,8 +204,6 @@ class CryptoDataGetter:
 
         returns = calc_returns(target)
         self.stacked = np.hstack((returns.reshape(-1,1), features.reshape(-1,12)[1:,:]))
-
-        print("Returns [%]: {:.6f} +- {:.6f}".format(np.mean(returns), np.std(returns)))
 
         if scaler == None:
             self.scaler = FeatureAwareScaler()

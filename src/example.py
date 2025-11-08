@@ -21,18 +21,17 @@ if __name__ == "__main__":
 
     cryptodata = CryptoDataGetter()
     synth = SyntheticTrader(cryptodata)
-    synth_machine = LSTMachine()
+    synth_machine = LSTMachine().init(candle = "5min", layer1 = 40, layer2 = 15, lookb = 10, learn_rate = 0.03 , dropout = 0.1, reg = 1e-4)
 
     """ ## Call historical data, simulate and apply an artificial trader ## """
 
     _, _, synth_target, synth_features = cryptodata.get_historical_data_trim(
     ["1 August 2024 00:00:00", 15000], "BTCUSDT", Client.KLINE_INTERVAL_5MINUTE,
-    transform_func=synth.linear_RSI, transform_strength = 0.02, plot = True)
+    transform_func=synth.linear_RSI, transform_strength = 0.02, plot = False)
 
     """ ############# Prepare Inputs, train the Neural Network ########### """
     x_train, y_train, x_val, y_val, scaler = cryptodata.split_slice_normalize(lookb = 10, lookf = 5, target_total = synth_target, features_total = synth_features)
 
-    synth_machine.init(candle = "5min", layer1 = 40, layer2 = 15, lookb = 10, learn_rate = 0.03 , dropout = 0.1, reg = 1e-4)
     trainmean, train_std, valmean, val_std = synth_machine.fit(x_train, y_train, x_val, y_val, epochs = 50, batch = 16)
 
     """ ############## Plot training and some examples #################### """
