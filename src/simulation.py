@@ -207,23 +207,20 @@ def equil_trader(forw_diff, kasse, btc_kasse, btc_price, equil_const = 100, forw
     """
     return kasse, btc_kasse, bought, equil, bought0
 
-def simulate_rendite(machinestrn, scalerstrn, timedef = [datetime.now(), 3600], verboseeach = 250, onlyfirstmachines=None, equil_const = 2, subsets = 200):
+def simulate_rendite(simple_machine, cryptodata = None, verboseeach = 250, onlyfirstmachines=None, equil_const = 2, subsets = 200):
     """ Runs through hourly candles, trades using each machine and computes obtained returns """
     # Careful, amount of tapes is less than target bec. they span an interval (lookb+lookf).
     # Also the return computation reduces amount by -1.
     # First tape (x) spans [0:lookb+1] and the predicted return applies on target[lookb]
 
-    simple_machine = CryptoMachine()
-    simple_machine.load_machine(machinestrn, scalerstrn)
+    if cryptodata is None:
+        cryptodata = CryptoDataGetter()
+        _, _, target_full, features_full = cryptodata.get_historical_data_trim(
+        ["1 August 2025 00:00:00", 3000], "BTCUSDT", Client.KLINE_INTERVAL_5MINUTE,
+        transform_func=synth.linear_RSI, transform_strength = 0.008)
+        x_train, y_train, scaler = self.slice_tapes_normalize(target_full, features_full, 10, 5)
+        simple_machine.set_scaler(scaler)
 
-    cryptodata = CryptoDataGetter()
-    if timedef[0] == "sim":
-        cryptodata.load_simdata(timedef[1])
-    else:
-        cryptodata.get_historical_data_trim(timedef[0], timedef[1], "BTCUSDT")
-
-    target_full = cryptodata.target_total
-    features_full = cryptodata.features_total
 
     #print("Last candle is")
     #print(datetime.utcfromtimestamp(dates[-1]/1000).strftime('%Y-%m-%d %H:%M:%S'))
