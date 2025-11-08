@@ -37,7 +37,7 @@ def deleteplots(file1, file2, file3):
             except Exception as e:
                 print(f"Error removing file {file_path[45:]}: {e}")
 
-class CryptoMachine:
+class LSTMachine:
     def __init__(self):
         # Attributes to store training curves
         self.candle, self.layer1, self.layer2, self.lookb, self.lookf, self.learn_rate, self.dropout = None, None, None, None, None, None, None
@@ -71,6 +71,8 @@ class CryptoMachine:
         self.model.compile(loss='mean_squared_error', optimizer=optimizer, metrics=['mae', 'mse'])
         self.model.summary()
 
+        return self
+
     def set_scaler(self, scaler):
         self.scaler = scaler
 
@@ -84,6 +86,7 @@ class CryptoMachine:
     def fit(self, x_train, y_train, x_val, y_val, epochs, batch,
             save=False, candle=1, nowstr="NOW", plot_curves=True):
         self.epochs = epochs
+        self.x_train, self.y_train, self.x_val, self.y_val = x_train, y_train, x_val, y_val
 
         es = EarlyStopping(monitor='val_loss', patience=8, restore_best_weights=True)
         rlr = ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=4, min_lr=1e-6)
@@ -108,8 +111,9 @@ class CryptoMachine:
 
         return self.trainmean, self.train_std, self.valmean, self.val_stdfinal
 
-    def save_model_scaler(self, strn):
+    def save_model_scaler(self, strn, scaler):
         # Define file paths
+        self.scaler = scaler
         nowstr = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         self.modelpath = f"../../machines/"+strn+"_machine_{nowstr}_b{self.lookb}_l{self.learn_rate}_b{self.batch}_one{self.layer1}_two{self.layer2}_dr{self.dropout}_candle{self.candle}.h5"
         self.scalerpath = f"../../scalers/"+strn+"_scaler_{nowstr}_b{self.lookb}_l{self.learn_rate}_b{self.batch}_one{self.layer1}_two{self.layer2}_dr{self.dropout}_candle{self.candle}.pkl"
@@ -158,7 +162,7 @@ class CryptoMachine:
         for i in range(0, len(x_val), self.batch):
             X_batch = x_val[i:i+self.batch]
             y_batch = y_val[i:i+self.batch]
-            batch_loss = simple_machine.model.evaluate(X_batch, y_batch, verbose=0)
+            batch_loss = self.model.evaluate(X_batch, y_batch, verbose=0)
             val_batch_losses.append(batch_loss)
 
         val_batch_losses = np.array(val_batch_losses)
@@ -192,52 +196,49 @@ class BatchLossLogger(tf.keras.callbacks.Callback):
 if __name__ == "__main__":
 
     cryptodata = CryptoDataGetter()
-    synth = SyntheticDriver(cryptodata)
+    synth = SyntheticTrader(cryptodata)
+
+    simple_machine = LSTMachine().init(candle = "5min", layer1 = 40, layer2 = 15, lookb = 10, learn_rate = 0.03 , dropout = 0.1, reg = 1e-4)
+    synth_machine = LSTMachine().init(candle = "5min", layer1 = 40, layer2 = 15, lookb = 10, learn_rate = 0.03 , dropout = 0.1, reg = 1e-4)
+
+    """ ## Call historical data, simulate and apply an artificial trader ## """
 
     target, features, synth_target, synth_features = cryptodata.get_historical_data_trim(
     ["1 August 2024 00:00:00", 15000], "BTCUSDT", Client.KLINE_INTERVAL_5MINUTE,
-    transform_func=synth.linear_RSI, transform_strength = 0.02)
+    transform_func=synth.linear_RSI, transform_strength = 0.02, plot = False)
 
-    """ Plotting some info on the data """
-    #cryptodata.plot_candlechart(200)
-    #plot_returns_histo(target, synth_target)
+    """ #################  Plotting some info on the data ################# """
+    cryptodata.plot_candlechart(200)
+    plot_returns_histo(target, synth_target)
     plot_correlation(calc_returns(target), calc_returns(target), "Autocorr. returns")
     plot_correlation(calc_returns(synth_target), calc_returns(synth_target), "Autocorr. synth returns")
     plot_correlation(np.subtract(features[1:,3],50), np.subtract(features[1:,3],50), " Auto corr. RSI ")
     plot_correlation(np.subtract(features[1:,3],50), calc_returns(target), " Cross-corr RSI-returns ")
     plot_correlation(np.subtract(features[1:,3],50), calc_returns(synth_target), " Cross-corr RSI-synth returns ")
 
+    """ #### Prepare Inputs, train the Neural Network (Original Data) #### """
 
-    epochs = 50
+    x_train, y_train, x_val, y_val, scaler = cryptodata.split_slice_normalize(lookb = 10, lookf = 5, target_total = target, features_total = features)
+    trainmean1, train_std1, valmean1, val_stdfinal1 = simple_machine.fit(x_train, y_train, x_val, y_val, epochs = 50, batch = 16)
 
-    """ ###################### --- ###################### """
-    target_train, target_val, features_train, features_val = cryptodata.split_train_val(target, features)
-    x_train, y_train, x_val, y_val, scaler = cryptodata.slice_alltapes_normalize(lookb = 10, lookf = 5)
+    """ ##### Prepare Inputs, train the Neural Network (Synth. Data) ###### """
 
-    plot_tape(x_train[0])
-    simple_machine = CryptoMachine()
-    simple_machine.init(candle = "1h", layer1 = 40, layer2 = 15, lookb = 10, learn_rate = 0.03 , dropout = 0.1, reg = 1e-4)
-    trainmean1, train_std1, valmean1, val_stdfinal1 = simple_machine.fit(x_train, y_train, x_val, y_val, epochs = epochs, batch = 16)
+    x_train, y_train, x_val, y_val, scaler = cryptodata.split_slice_normalize(lookb = 10, lookf = 5, target_total = synth_target, features_total = synth_features)
+    trainmean2, train_std2, valmean2, val_stdfinal2 = synth_machine.fit(x_train, y_train, x_val, y_val, epochs = 50, batch = 16)
 
-    simple_machine.set_scaler(scaler)
-    simple_machine.save_model_scaler("simplemachine")
-    """ ###################### --- ###################### """
-    target_train, target_val, features_train, features_val = cryptodata.split_train_val(synth_target, synth_features)
-    x_trains, y_trains, x_vals, y_vals, scaler = cryptodata.slice_alltapes_normalize(lookb = 10, lookf = 5)
+    """ ## Plot training results, an example tape and example prediction ## """
 
-    synth_machine = CryptoMachine()
-    synth_machine.init(candle = "1h", layer1 = 40, layer2 = 15, lookb = 10, learn_rate = 0.03 , dropout = 0.1, reg = 1e-4)
-    trainmean2, train_std2, valmean2, val_stdfinal2 = synth_machine.fit(x_trains, y_trains, x_vals, y_vals, epochs = epochs, batch = 16)
-
-    synth_machine.set_scaler(scaler)
-    synth_machine.save_model_scaler("synthmachine")
-    """ ###################### --- ###################### """
-    plot = MachinePlotter(simple_machine, synth_machine, x_val, y_val, x_vals, y_vals)
-    plot.plotmachine([trainmean2], [train_std2], [valmean2], [val_stdfinal2])
+    plot = MachinePlotter(simple_machine, synth_machine)
+    plot.plotmachines([trainmean1, trainmean2], [train_std1, train_std2], [valmean1, valmean2], [val_stdfinal1, val_stdfinal2])
+    plot.plot_tape(x_train[0])
     plot.plot_tape_eval(x_val, y_val)
 
     print(" Final prediction errors on the validation of each series. ")
     print(" Original: {:.4f} +- {:.4f}".format(np.mean(valmean1), val_stdfinal1))
     print(" Synth:   {:.4f} +- {:.4f}".format(np.mean(valmean2), val_stdfinal2))
 
+    simple_machine.save_model_scaler("simplemachine", scaler)
+    synth_machine.save_model_scaler("synthmachine", scaler)
+
     """ ############# PROFIT SIMULATION ############## """
+    #simulate_rendite()

@@ -107,21 +107,14 @@ class SyntheticTrader:
         RSI = features[:,2]
         bought = False
 
-
-
         for i in range(len(self.traded)):
-            """ Square root impact (literature) """
+            """ Square root impact (literature) in interval [-1,+1] """
             dP = np.sqrt(np.abs((RSI[i]-50))/50) * np.sign( RSI[i]-50)
             self.traded[i] = dP*perc + 1 # 0.01 + 1
             """ Linear impact """
             #self.traded[i] = (RSI[i]-50)/50*perc + 1 # 0.01 + 1
 
             self.synth_price[i] = self.target[i]*self.traded[i]
-
-        plt.plot(self.target, label = " Orig. BTCUSD")
-        plt.plot(self.synth_price, label = " Synth BTCUSDT")
-        plt.legend()
-        plt.show()
 
         return self.traded
 

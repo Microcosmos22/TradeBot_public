@@ -10,15 +10,13 @@ from datetime import datetime, timedelta
 import os, sys
 
 class MachinePlotter:
-    def __init__(self, model, synthmodel, x_val, y_val, x_vals, y_vals):
+    def __init__(self, model, synthmodel = None):
         self.blue_colors = [
             "lightblue", "skyblue", "deepskyblue", "dodgerblue",
             "cornflowerblue", "royalblue", "blue", "mediumblue", "navy"
         ]
         self.model = model
         self.synthmodel = synthmodel
-        self.x_val, self.y_val, self.x_vals, self.y_vals = x_val, y_val, x_vals, y_vals
-
         self.red_colors = [
             "lightcoral", "salmon", "darksalmon", "tomato",
             "red", "firebrick", "darkred", "indianred", "crimson"
@@ -46,7 +44,6 @@ class MachinePlotter:
         #axes[1, 1].plot(np.arange(len(self.x_val[idx,:,:])), self.x_val[idx,:,:], color='blue')
         #axes[1, 1].set_title("Features. X")
 
-
         # Adjust layout and show
         plt.tight_layout()
         plt.show()
@@ -58,7 +55,7 @@ class MachinePlotter:
         epochs = len(train_mean[0])
 
         # Create 1 row, 2 columns
-        fig, axes = plt.subplots(2, 2, figsize=(14, 5), sharex=True, sharey=True)
+        fig, axes = plt.subplots(2, 2, figsize=(14, 5), sharex=True, sharey=False)
 
         """ --- Training error plot --- """
 
@@ -104,44 +101,63 @@ class MachinePlotter:
 
         print("Saved training curves")
 
-def plotmachine(self, train_mean, train_std, val_mean, val_std):
+    def plotmachine(self, train_mean, train_std, val_mean, val_std):
 
-    plt.style.use('ggplot') #Change/Remove This If you Want
+        plt.style.use('ggplot') #Change/Remove This If you Want
 
-    epochs = len(train_mean[0])
+        epochs = len(train_mean)
 
-    # Create 1 row, 2 columns
-    fig, axes = plt.subplots(1, 2, figsize=(14, 5), sharex=True, sharey=True)
+        # Create 1 row, 2 columns
+        fig, axes = plt.subplots(1, 2, figsize=(14, 5), sharex=True, sharey=True)
 
-    """ --- Training error plot --- """
+        """ --- Training error plot --- """
 
-    axes[0].plot(np.arange(epochs), train_mean, color='blue', label='Train Error', linewidth=1.0)
-    axes[0].fill_between(np.arange(epochs),
-                         train_mean - train_std,
-                         train_mean + train_std,
-                         color='blue', alpha=0.4)
-    axes[0].errorbar(x=[epochs - 1], y=[train_mean[-1]], yerr=[train_std[-1]],
-        fmt='o', color='blue', ecolor='blue',           # color of error bar
-        elinewidth=1.5, capsize=4, label='Final ±1σ')
-
-
-    axes[0,0].set_title("Training Error")
-    axes[0,0].set_xlabel("Epochs")
-    axes[0,0].set_ylabel("Error")
-    axes[0,0].legend(loc='best')
+        axes[0].plot(np.arange(epochs), train_mean, color='blue', label='Train Error', linewidth=1.0)
+        axes[0].fill_between(np.arange(epochs),
+                             np.subtract(train_mean,train_std),
+                             np.add(train_mean,train_std),
+                             color='blue', alpha=0.4)
+        axes[0].errorbar(x=[epochs - 1], y=[train_mean[-1]], yerr=[train_std[-1]],
+            fmt='o', color='blue', ecolor='blue',           # color of error bar
+            elinewidth=1.5, capsize=4, label='Final ±1σ')
 
 
-    """ --- Validation error plot --- """
-    axes[1].plot(np.arange(epochs), val_mean, color='orange', label='Synth Validation Error', linewidth=1.0)
+        axes[0].set_title("Training Error")
+        axes[0].set_xlabel("Epochs")
+        axes[0].set_ylabel("Error")
+        axes[0].legend(loc='best')
 
-    axes[1].set_title("Validation Error")
-    axes[1].set_xlabel("Epochs")
-    axes[1].legend(loc='best')
 
-    plt.tight_layout()
-    plt.show()
+        """ --- Validation error plot --- """
+        axes[1].plot(np.arange(epochs), val_mean, color='orange', label='Synth Validation Error', linewidth=1.0)
 
-    print("Saved training curves")
+        axes[1].set_title("Validation Error")
+        axes[1].set_xlabel("Epochs")
+        axes[1].legend(loc='best')
+
+        plt.tight_layout()
+        plt.show()
+
+        print("Saved training curves")
+
+    def plot_tape(x):
+
+        plt.plot(x[:,0], label="Returns")
+        plt.plot(x[:,1], label="SMA_20")
+        plt.plot(x[:,2], label="SMA_50")
+        plt.plot(x[:,3], label="RSI")
+        plt.plot(x[:,4], label="BB_w")
+        plt.plot(x[:,5], label="momentum")
+        plt.plot(x[:,6], label="vol")
+        plt.plot(x[:,7], label="k")
+        plt.plot(x[:,8], label="d")
+        plt.plot(x[:,9], label="macddiff")
+        plt.plot(x[:,10], label="dmonth")
+        plt.plot(x[:,11], label="dweek")
+        plt.plot(x[:,12], label="hday")
+        plt.legend()
+        plt.title(" Input X (normalized)")
+        plt.show()
 
 def plot_scaling_stacked(stacked, stacked_n):
     fig, axes = plt.subplots(1, 2, figsize=(14, 5), sharex=True, sharey=False)
@@ -206,25 +222,6 @@ def plot_test_predictions_grid(trues, preds):
     plt.savefig("constant_predictions.png")
 
     # Show the plots
-    plt.show()
-
-def plot_tape(x):
-
-    plt.plot(x[:,0], label="Returns")
-    plt.plot(x[:,1], label="SMA_20")
-    plt.plot(x[:,2], label="SMA_50")
-    plt.plot(x[:,3], label="RSI")
-    plt.plot(x[:,4], label="BB_w")
-    plt.plot(x[:,5], label="momentum")
-    plt.plot(x[:,6], label="vol")
-    plt.plot(x[:,7], label="k")
-    plt.plot(x[:,8], label="d")
-    plt.plot(x[:,9], label="macddiff")
-    plt.plot(x[:,10], label="dmonth")
-    plt.plot(x[:,11], label="dweek")
-    plt.plot(x[:,12], label="hday")
-    plt.legend()
-    plt.title(" Input X (normalized)")
     plt.show()
 
 def plot_after_split(y_test, par_test):

@@ -64,7 +64,7 @@ class CryptoDataGetter:
         #self.dates_total = np.load("../../dates_sim.npy")
         return self.target_total, self.features_total
 
-    def get_historical_data_trim(self, timedef, coin = "BTCUSDT", candle_length = Client.KLINE_INTERVAL_1HOUR, transform_func=None, transform_strength = 3):
+    def get_historical_data_trim(self, timedef, coin = "BTCUSDT", candle_length = Client.KLINE_INTERVAL_1HOUR, transform_func=None, transform_strength = 3, plot = False):
         """ Given a end_of_training datetime and N of candles, returns the past N candles and computes the features/technical indicators.
         Gets all candles and features of a crypto coin for a fixed candle length. There is three options:
         # 1: timedef is an int -> retrieve the last N candles
@@ -142,15 +142,31 @@ class CryptoDataGetter:
         if transform_func is not None:
             return_shift = transform_func(self.target_total, self.features_total, transform_strength)
 
+            returns = calc_returns(data[:,1].astype(float))
+            print(" Original Returns [%]: {:.6f} +- {:.6f}".format(np.mean(returns), np.std(returns)))
+
             for k in range(1,5):
                 data[50:,k] = np.multiply(data[50:,k].astype(float), return_shift)
 
-            print(" Shift in returns [%] is {:.6f} +- {:.6f} ".format(np.mean(return_shift), np.std(return_shift)))
+            #print(" Average trader return impact [%] {:.6f} +- {:.6f} ".format(100-(np.mean(return_shift)*100), np.std(return_shift)*100))
+            returns = calc_returns(data[:,1].astype(float))
+            print(" Synth. returns after trader [%]: {:.6f} +- {:.6f}".format(np.mean(returns), np.std(returns)))
+
+
             # This for without recomputing synth features
             self.synth_features = self.features_total
             self.synth_target = np.multiply(self.target_total, return_shift)
             # This is for re-computing the synth features after trader
             #self.synth_target, self.synth_features = compute_features_trim(data, self.timestamps)
+
+        if plot:
+            self.plot_candlechart(200)
+            plt.plot(self.target_total, label = " Orig. BTCUSD")
+            plt.plot(self.synth_target, label = " Synth BTCUSDT")
+            plt.xlabel(" Time (5min candles)")
+            plt.ylabel(" BTCUSDT in $")
+            plt.legend()
+            plt.show()
 
         return np.asarray(self.target_total), np.asarray(self.features_total), np.asarray(self.synth_target), np.asarray(self.synth_features)
 
@@ -189,8 +205,6 @@ class CryptoDataGetter:
         returns = calc_returns(target)
         self.stacked = np.hstack((returns.reshape(-1,1), features.reshape(-1,12)[1:,:]))
 
-        print("Returns [%]: {:.6f} +- {:.6f}".format(np.mean(returns), np.std(returns)))
-
         if scaler == None:
             self.scaler = FeatureAwareScaler()
             self.stacked_n = self.scaler.fit_transform(self.stacked.reshape(-1,13))
@@ -207,6 +221,17 @@ class CryptoDataGetter:
 
         return np.asarray(x),  np.asarray(y), self.scaler
 
+    def split_slice_normalize(self, lookb, lookf, target_total = None, features_total = None):
+        if target_total is None:
+            target_total = self.target_total
+        if features_total is None:
+            features_total = self.features_total
+        self.lookb, self.lookf = lookb, lookf
+
+        self.split_train_val(target_total, features_total)
+        self.slice_alltapes_normalize(self.lookb, self.lookf)
+        return self.x_train, self.y_train, self.x_val, self.y_val, self.scaler
+
     def plot_candlechart(self, N):
 
         fig = go.Figure(data=[
@@ -218,6 +243,20 @@ class CryptoDataGetter:
             close=self.data['close'].to_numpy().flatten()[:N]
             )
         ])
+
+        fig.update_layout(
+            title={
+                'text': "BTC/USDT Candlestick Chart",
+                'x': 0.5,  # centers the title
+                'xanchor': 'center',
+                'yanchor': 'top'
+            },
+            xaxis_title="Time",
+            yaxis_title="Price $",
+            xaxis_rangeslider_visible=False,
+            template="plotly_dark"  # optional: gives a nice look
+        )
+
         fig.update_layout(xaxis_rangeslider_visible=False)
         fig.show()
         return
