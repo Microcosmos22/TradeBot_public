@@ -21,30 +21,21 @@ if __name__ == "__main__":
 
     cryptodata = CryptoDataGetter()
     synth = SyntheticTrader(cryptodata)
+    synth_machine = LSTMachine()
 
-    target, features, synth_target, synth_features = cryptodata.get_historical_data_trim(
+    """ ## Call historical data, simulate and apply an artificial trader ## """
+
+    _, _, synth_target, synth_features = cryptodata.get_historical_data_trim(
     ["1 August 2024 00:00:00", 15000], "BTCUSDT", Client.KLINE_INTERVAL_5MINUTE,
-    transform_func=synth.linear_RSI, transform_strength = 0.02)
+    transform_func=synth.linear_RSI, transform_strength = 0.02, plot = True)
 
-    """ Plotting some info on the data """
-    cryptodata.plot_candlechart(200)
-    epochs = 50
+    """ ############# Prepare Inputs, train the Neural Network ########### """
+    x_train, y_train, x_val, y_val, scaler = cryptodata.split_slice_normalize(lookb = 10, lookf = 5, target_total = synth_target, features_total = synth_features)
 
-    """ ###################### --- ###################### """
-    cryptodata.split_train_val(synth_target, synth_features)
-    x_trains, y_trains, x_vals, y_vals, scaler = cryptodata.slice_alltapes_normalize(lookb = 10, lookf = 5)
+    synth_machine.init(candle = "5min", layer1 = 40, layer2 = 15, lookb = 10, learn_rate = 0.03 , dropout = 0.1, reg = 1e-4)
+    trainmean, train_std, valmean, val_std = synth_machine.fit(x_train, y_train, x_val, y_val, epochs = 50, batch = 16)
 
-    synth_machine = CryptoMachine()
-    synth_machine.init(candle = "1h", layer1 = 40, layer2 = 15, lookb = 10, learn_rate = 0.03 , dropout = 0.1, reg = 1e-4)
-    trainmean2, train_std2, valmean2, val_stdfinal2 = synth_machine.fit(x_trains, y_trains, x_vals, y_vals, epochs = epochs, batch = 16)
-
-    """ ###################### --- ###################### """
-    plot = MachinePlotter(synth_machine, synth_machine, x_val, y_val, x_vals, y_vals)
-    plot.plotmachines([trainmean1, trainmean2], [train_std1, train_std2], [valmean1, valmean2], [val_stdfinal1, val_stdfinal2])
+    """ ############## Plot training and some examples #################### """
+    plot = MachinePlotter(synth_machine)
+    plot.plotmachine(trainmean, train_std, valmean, val_std)
     plot.plot_tape_eval(x_val, y_val)
-
-    print(" Final prediction errors on the validation of each series. ")
-    print(" Original: {:.4f} +- {:.4f}".format(np.mean(valmean1), val_stdfinal1))
-    print(" Synth:   {:.4f} +- {:.4f}".format(np.mean(valmean2), val_stdfinal2))
-
-    """ ############# PROFIT SIMULATION ############## """
