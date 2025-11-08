@@ -37,7 +37,7 @@ def deleteplots(file1, file2, file3):
             except Exception as e:
                 print(f"Error removing file {file_path[45:]}: {e}")
 
-class CryptoMachine:
+class LSTMachine:
     def __init__(self):
         # Attributes to store training curves
         self.candle, self.layer1, self.layer2, self.lookb, self.lookf, self.learn_rate, self.dropout = None, None, None, None, None, None, None
@@ -71,6 +71,8 @@ class CryptoMachine:
         self.model.compile(loss='mean_squared_error', optimizer=optimizer, metrics=['mae', 'mse'])
         self.model.summary()
 
+        return self
+
     def set_scaler(self, scaler):
         self.scaler = scaler
 
@@ -84,6 +86,7 @@ class CryptoMachine:
     def fit(self, x_train, y_train, x_val, y_val, epochs, batch,
             save=False, candle=1, nowstr="NOW", plot_curves=True):
         self.epochs = epochs
+        self.x_train, self.y_train, self.x_val, self.y_val = x_train, y_train, x_val, y_val
 
         es = EarlyStopping(monitor='val_loss', patience=8, restore_best_weights=True)
         rlr = ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=4, min_lr=1e-6)
@@ -158,7 +161,7 @@ class CryptoMachine:
         for i in range(0, len(x_val), self.batch):
             X_batch = x_val[i:i+self.batch]
             y_batch = y_val[i:i+self.batch]
-            batch_loss = simple_machine.model.evaluate(X_batch, y_batch, verbose=0)
+            batch_loss = self.model.evaluate(X_batch, y_batch, verbose=0)
             val_batch_losses.append(batch_loss)
 
         val_batch_losses = np.array(val_batch_losses)
@@ -194,6 +197,11 @@ if __name__ == "__main__":
     cryptodata = CryptoDataGetter()
     synth = SyntheticDriver(cryptodata)
 
+    simple_machine = LSTMachine().init(candle = "5min", layer1 = 40, layer2 = 15, lookb = 10, learn_rate = 0.03 , dropout = 0.1, reg = 1e-4)
+    synth_machine = LSTMachine().init(candle = "5min", layer1 = 40, layer2 = 15, lookb = 10, learn_rate = 0.03 , dropout = 0.1, reg = 1e-4)
+
+    """ ## Call historical data, simulate and apply an artificial trader ## """
+    
     target, features, synth_target, synth_features = cryptodata.get_historical_data_trim(
     ["1 August 2024 00:00:00", 15000], "BTCUSDT", Client.KLINE_INTERVAL_5MINUTE,
     transform_func=synth.linear_RSI, transform_strength = 0.02)
@@ -211,28 +219,22 @@ if __name__ == "__main__":
     epochs = 50
 
     """ ###################### --- ###################### """
-    target_train, target_val, features_train, features_val = cryptodata.split_train_val(target, features)
-    x_train, y_train, x_val, y_val, scaler = cryptodata.slice_alltapes_normalize(lookb = 10, lookf = 5)
+    x_train, y_train, x_val, y_val, scaler = cryptodata.split_slice_normalize(lookb = 10, lookf = 5, target_total = target, features_total = features)
 
     plot_tape(x_train[0])
-    simple_machine = CryptoMachine()
-    simple_machine.init(candle = "1h", layer1 = 40, layer2 = 15, lookb = 10, learn_rate = 0.03 , dropout = 0.1, reg = 1e-4)
     trainmean1, train_std1, valmean1, val_stdfinal1 = simple_machine.fit(x_train, y_train, x_val, y_val, epochs = epochs, batch = 16)
 
     simple_machine.set_scaler(scaler)
     simple_machine.save_model_scaler("simplemachine")
     """ ###################### --- ###################### """
-    target_train, target_val, features_train, features_val = cryptodata.split_train_val(synth_target, synth_features)
-    x_trains, y_trains, x_vals, y_vals, scaler = cryptodata.slice_alltapes_normalize(lookb = 10, lookf = 5)
+    x_train, y_train, x_val, y_val, scaler = cryptodata.split_slice_normalize(lookb = 10, lookf = 5, target_total = synth_target, features_total = synth_features)
 
-    synth_machine = CryptoMachine()
-    synth_machine.init(candle = "1h", layer1 = 40, layer2 = 15, lookb = 10, learn_rate = 0.03 , dropout = 0.1, reg = 1e-4)
     trainmean2, train_std2, valmean2, val_stdfinal2 = synth_machine.fit(x_trains, y_trains, x_vals, y_vals, epochs = epochs, batch = 16)
 
     synth_machine.set_scaler(scaler)
     synth_machine.save_model_scaler("synthmachine")
     """ ###################### --- ###################### """
-    plot = MachinePlotter(simple_machine, synth_machine, x_val, y_val, x_vals, y_vals)
+    plot = MachinePlotter(simple_machine, synth_machine)
     plot.plotmachine([trainmean2], [train_std2], [valmean2], [val_stdfinal2])
     plot.plot_tape_eval(x_val, y_val)
 
