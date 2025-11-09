@@ -9,7 +9,7 @@ It is meant to make this whole process more easy!
 
 ## First install with: 
 
-pip install tradebot
+pip install marketML
 
 ## Example code:
 
@@ -37,9 +37,10 @@ pip install tradebot
 
 Original candlestick crypto data:
 ![Trading bot performance](images/example/candlestick.png)
+<img src="images/example/candlestick.png" width="75%">
 
 We modify it by introducing a linear RSI trader that causes a price shift:
-![](images/example/orig_synth_price.png)
+<img src="images/example/orig_synth_price.png" width="50%">
 
 The model learns much more from this synthetic data than from the original pattern.
 ![](images/example/train_val.png)
