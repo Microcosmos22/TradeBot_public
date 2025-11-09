@@ -36,7 +36,6 @@ pip install marketML
 ```
 
 Original candlestick crypto data:
-![Trading bot performance](images/example/candlestick.png)
 <img src="images/example/candlestick.png" width="75%">
 
 We modify it by introducing a linear RSI trader that causes a price shift:
