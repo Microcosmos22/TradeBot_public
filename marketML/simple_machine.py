@@ -6,11 +6,11 @@ import matplotlib.pyplot as plt
 import pickle
 from datetime import datetime, timedelta
 import os, sys
-from calc_tools import *
-from get_binance import *
-from plotting import *
-from synthetic_driver import *
-from simulation import *
+from .calc_tools import *
+from .get_binance import *
+from .plotting import *
+from .synthetic_driver import *
+from .simulation import *
 import pandas as pd
 import scipy.signal as signal
 import pickle
@@ -206,7 +206,11 @@ if __name__ == "__main__":
     target, features, synth_target, synth_features = cryptodata.get_historical_data_trim(
     ["1 August 2024 00:00:00", 15000], "BTCUSDT", Client.KLINE_INTERVAL_5MINUTE,
     transform_func=synth.linear_RSI, transform_strength = 0.02, plot = False)
-
+    np.save("target_sim.npy", target)
+    np.save("features_sim.npy", features)
+    np.save("synth_target.npy", synth_target)
+    np.save("synth_features.npy", synth_features)
+    
     """ #################  Plotting some info on the data ################# """
     cryptodata.plot_candlechart(200)
     plot_returns_histo(target, synth_target)

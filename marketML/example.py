@@ -6,11 +6,11 @@ import matplotlib.pyplot as plt
 import pickle
 from datetime import datetime, timedelta
 import os, sys
-from calc_tools import *
-from get_binance import *
-from plotting import *
-from synthetic_driver import *
-from simulation import *
+from .calc_tools import *
+from .get_binance import *
+from .plotting import *
+from .synthetic_driver import *
+from .simulation import *
 import pandas as pd
 import scipy.signal as signal
 import pickle

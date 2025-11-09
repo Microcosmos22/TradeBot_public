@@ -4,9 +4,9 @@ import matplotlib.pyplot as plt
 import pickle
 from datetime import datetime, timedelta
 import os, sys
-from calc_tools import *
-from plotting import *
-from scaler import FeatureAwareScaler
+from .calc_tools import *
+from .plotting import *
+from .scaler import FeatureAwareScaler
 import copy
 import plotly
 import plotly.graph_objects as go

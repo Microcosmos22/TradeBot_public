@@ -3,18 +3,18 @@ requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "TradeBot_public"
-version = "0.1.0"
+name = "marketML"
+version = "0.1.3"
 description = "A lightweight crypto trading and ML toolkit"
 authors = [{ name = "Andrés Huster Zapke", email = "aahuster@gmail.com" }]
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.0"
 
 # You can choose either direct dependencies or point to requirements.txt
 dynamic = ["dependencies"]
 
 [tool.setuptools]
-packages = ["TradeBot_public"]
+packages = ["marketML"]
 
 [tool.setuptools.dynamic]
 dependencies = {file = ["requirements.txt"]}

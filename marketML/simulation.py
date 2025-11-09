@@ -8,10 +8,10 @@ import matplotlib.pyplot as plt
 import pickle
 from datetime import datetime, timedelta
 import os, sys
-from calc_tools import *
-from get_binance import *
-from plotting import *
-from simple_machine import *
+from .calc_tools import *
+from .get_binance import *
+from .plotting import *
+from .simple_machine import *
 from keras.models import Sequential, load_model
 from tensorflow.keras.layers import Dense
 import pandas as pd

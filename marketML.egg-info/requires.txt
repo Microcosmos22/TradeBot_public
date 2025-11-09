@@ -1,0 +1,9 @@
+binance==0.3
+keras==3.8.0
+matplotlib==3.10.6
+numpy
+pandas==2.3.3
+python_binance==1.0.24
+scikit_learn==1.7.2
+scipy==1.16.2
+tensorflow==2.18.0
