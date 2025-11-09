@@ -42,7 +42,7 @@ We modify it by introducing a linear RSI trader that causes a price shift:
 <img src="images/example/orig_synth_price.png" width="50%">
 
 The model learns much more from this synthetic data than from the original pattern.
-![](images/example/train_val.png)
+![](images/train_val.png)
 
 This is not surprising, but this framework provides the opportunity to test different models and traders,
 with the goal to find the model that can capture the most trade bots. 
