@@ -43,7 +43,7 @@ From the original candlestick crypto data above,
 We modify it by introducing a linear RSI trader that causes a price shift:
 <img src="images/example/orig_synth_price.png" width="50%">
 
-The model learns much more from this synthetic data than from the original pattern.
+The model learns much more from this synthetic data than from the original pattern. This is due to the explicitly introduced correlation between the target price and a certain features: RSI.
 ![](images/train_val.png)
 
 From the correlations between target and features_i: C_i(tau):
