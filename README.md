@@ -47,7 +47,7 @@ The model learns much more from this synthetic data than from the original patte
 ![](images/train_val.png)
 
 From the correlations between target and features_i: C_i(tau):
-![Example](crosscorr.png)
+![Example](images_crosscorr.png)
 
 
 We can see theoretically the "predictiveness" of future prices based on their linear (there are more correlatios above) correlation with past features/technical indicators:
@@ -56,9 +56,9 @@ This is not surprising, but this framework provides the opportunity to test diff
 with the goal to find the model that can capture the most trade bots. 
 
 
-<img src="images/Tapes" width="50%">
+<img src="images/Tapes.png" width="50%">
 
-<img src="images/prices_hist" width="50%">
+<img src="images/prices_hist.png" width="50%">
 
 
 
