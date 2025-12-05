@@ -50,20 +50,20 @@ From the correlations between target and features_i: C_i(tau):
 <img src="images/crosscorr.png" width="50%">
 
 
-We can see theoretically the "predictiveness" of future prices based on their linear (there are more correlatios above) correlation with past features/technical indicators:
+We can see theoretically the "predictiveness" of future prices based on their linear (there are higher order correlatios) correlation with past features/technical indicators:
 
-This is not surprising, but this framework provides the opportunity to test different models and traders,
+The main training result is not surprising, but this framework provides the opportunity to test different models and traders,
 with the goal to find the model that can capture the most trade bots. 
 
+###################################################################
+
+For clarity, the input of the model, X, is always composed of the last N timesteps x M features (we use 13). The example above only used RSI.
 
 <img src="images/Tapes.png" width="50%">
 
+In the histogram, we can wee the broadening of the price fluctuations due to the synthetic trader.
+
 <img src="images/prices_hist.png" width="50%">
-
-
-
-For a more detailed tutorial that goes through all functions of this library,
-i uploaded a Kaggle notebook, showing the capture of a real-time trading bot:
 
 
 
