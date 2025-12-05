@@ -66,6 +66,45 @@ In the histogram, we can wee the broadening of the price fluctuations due to the
 
 <img src="images/prices_hist.png" width="50%">
 
+CHATGPT:
+❗ But here are the necessary caveats
+
+A visible correlation pattern does not guarantee:
+
+✘ stability over time
+✘ stationarity
+✘ profit after execution costs
+✘ non-spurious correlation
+
+Most market effects die immediately once lag is applied or when non-stationarity is handled.
+
+🔍 What makes your observation stronger
+
+Your result becomes meaningful if:
+
+✔ The shape persists across:
+
+different time windows
+
+bull/bear regimes
+
+multiple assets
+
+And 
+
+So the shape you see might be:
+
+📌 artifact of convolution
+📌 not true predictability
+
+To rule this out:
+
+Compare your C_RSI(τ) against:
+
+🔥 shuffled-price RSI
+🔥 white noise price series
+🔥 randomly permuted returns
+
 
 
 ## 🧠 Project Overview
