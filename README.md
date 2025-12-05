@@ -36,13 +36,18 @@ pip install marketML
 ```
 
 Original candlestick crypto data:
-<img src="images/example/candlestick.png" width="75%">
+<img src="images/example/candlestick.png" width="61%">
 
 We modify it by introducing a linear RSI trader that causes a price shift:
 <img src="images/example/orig_synth_price.png" width="50%">
 
 The model learns much more from this synthetic data than from the original pattern.
 ![](images/train_val.png)
+
+From the correlations between target and features_i: C_i(tau):
+<img src="images/example/crosscorr.png" width="50%">
+
+We can see theoretically the "predictiveness" of future prices based on their linear (there are more correlatios above) correlation with past features/technical indicators:
 
 This is not surprising, but this framework provides the opportunity to test different models and traders,
 with the goal to find the model that can capture the most trade bots. 
