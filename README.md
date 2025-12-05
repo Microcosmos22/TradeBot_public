@@ -47,6 +47,7 @@ The model learns much more from this synthetic data than from the original patte
 ![](images/train_val.png)
 
 From the correlations between target and features_i: C_i(tau):
+
 <img src="images/crosscorr.png" width="50%">
 
 
