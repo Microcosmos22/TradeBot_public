@@ -47,7 +47,7 @@ The model learns much more from this synthetic data than from the original patte
 ![](images/train_val.png)
 
 From the correlations between target and features_i: C_i(tau):
-![Example](images_crosscorr.png)
+<img src="images/crosscorr.png" width="50%">
 
 
 We can see theoretically the "predictiveness" of future prices based on their linear (there are more correlatios above) correlation with past features/technical indicators:
