@@ -7,6 +7,9 @@ It also permits its implementation in a real-time trading bot,
 and includes different tools for getting, analyzing and pre-processing data.
 It is meant to make this whole process more easy!
 
+
+<img src="images/example/candlestick.png" width="41%">
+
 ## First install with: 
 
 pip install marketML
@@ -35,8 +38,7 @@ pip install marketML
     plot.plot_tape_eval(x_val, y_val)
 ```
 
-Original candlestick crypto data:
-<img src="images/example/candlestick.png" width="61%">
+From the original candlestick crypto data above,
 
 We modify it by introducing a linear RSI trader that causes a price shift:
 <img src="images/example/orig_synth_price.png" width="50%">
