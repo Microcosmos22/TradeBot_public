@@ -46,7 +46,7 @@ We modify it by introducing a linear RSI trader that causes a price shift:
 The model learns much more from this synthetic data than from the original pattern. This is due to the explicitly introduced correlation between the target price and a certain features: RSI.
 ![](images/train_val.png)
 
-From the correlations between target and features_i: C_i(tau):
+After averaging of the price returns by lookf, we can compute the correlations C_i(tau) between returns and the i-th feature (RSI):
 
 <img src="images/crosscorr.png" width="50%">
 
