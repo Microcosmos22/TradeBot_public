@@ -1,20 +1,24 @@
 # TradeBot — Learning Market Dynamics from Synthetic Correlations
+<img src="images/example/candlestick.png" width="41%">
+
 Simulate common trading bots on real crypto data and prove that a neural networks is able to capture the pattern!
 
+## Motivation
 This project proves that a neural network can learn meaningful market patterns
 that stem from commonly used pre-programmed bots on the real market.
 It also permits its implementation in a real-time trading bot,
 and includes different tools for getting, analyzing and pre-processing data.
 It is meant to make this whole process more easy!
 
+## Approach & Architecture
 
-<img src="images/example/candlestick.png" width="41%">
 
-## First install with: 
+
+First install with: 
 
 `pip install marketML`
 
-## Example code:
+Example code:
 
 ```python
     cryptodata = CryptoDataGetter()
@@ -43,6 +47,16 @@ From the original candlestick crypto data above,
 We modify it by introducing a linear RSI trader that causes a price shift:
 <img src="images/example/orig_synth_price.png" width="50%">
 
+The input of the model, X, is always composed of whichever price over the last N timesteps and M features (we use 13). that can be computed directly.
+
+<img src="images/Tapes.png" width="50%">
+
+In the histogram, we can wee the broadening of the price fluctuations due to the synthetic trader.
+
+<img src="images/prices_hist.png" width="50%">
+
+## Results
+
 The model learns much more from this synthetic data than from the original pattern. This is due to the explicitly introduced correlation between the target price and a certain features: RSI.
 ![](images/train_val.png)
 
@@ -51,70 +65,16 @@ After averaging of the price returns by lookf, we can compute the correlations C
 <img src="images/crosscorr.png" width="50%">
 
 
-We can see theoretically the "predictiveness" of future prices based on their linear (there are higher order correlatios) correlation with past features/technical indicators:
+We can see theoretically the "predictiveness" of future prices based on their linear (there are higher order correlatios) correlation with past features/technical indicators. It remains the question of why our model could not capture this pattern, a safe assumption is that the signal is too weak compared to the noise.
 
-The main training result is not surprising, but this framework provides the opportunity to test different models and traders,
-with the goal to find the model that can capture the most trade bots. 
+## Future work
+
+- A question arises, to whether is correlation pattern is stable over time, this needs to be tested an quantified; that will give a notion of how often the model has to be retrained.
+- Implementation of the trading bot strategy: Although this is working, there is no assurance of profit until the above pattern can be captured.
+- A relation between the training and the trading must be established. Even if the synthetic trader could be modelled, would this give profits on future synthetic prices?
 
 ###################################################################
 
-For clarity, the input of the model, X, is always composed of the last N timesteps x M features (we use 13). The example above only used RSI.
-
-<img src="images/Tapes.png" width="50%">
-
-In the histogram, we can wee the broadening of the price fluctuations due to the synthetic trader.
-
-<img src="images/prices_hist.png" width="50%">
-
-CHATGPT:
-❗ But here are the necessary caveats
-
-A visible correlation pattern does not guarantee:
-
-✘ stability over time
-✘ stationarity
-✘ profit after execution costs
-✘ non-spurious correlation
-
-Most market effects die immediately once lag is applied or when non-stationarity is handled.
-
-🔍 What makes your observation stronger
-
-Your result becomes meaningful if:
-
-✔ The shape persists across:
-
-different time windows
-
-bull/bear regimes
-
-multiple assets
-
-And 
-
-So the shape you see might be:
-
-📌 artifact of convolution
-📌 not true predictability
-
-To rule this out:
-
-Compare your C_RSI(τ) against:
-
-🔥 shuffled-price RSI
-🔥 white noise price series
-🔥 randomly permuted returns
-
-
-
-## 🧠 Project Overview
-
-1. Load historical BTCUSDT data  
-2. Compute technical indicators and prepare model inputs  
-3. Diagnose data distributions and correlations  
-4. Generate synthetic market data with controlled structure  
-5. Train neural network on real vs synthetic data  
-6. Simulate a trading bot using trained model  
 
 
 
