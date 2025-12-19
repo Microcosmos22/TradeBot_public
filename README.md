@@ -12,7 +12,7 @@ It is meant to make this whole process more easy!
 
 ## First install with: 
 
-pip install marketML
+`pip install marketML`
 
 ## Example code:
 
